@@ -5,7 +5,13 @@ import { supabase } from "@/lib/supabase";
 import { User, Phone, CreditCard, Package, Flame, Bike, MapPin } from "lucide-react";
 import type { Pedido, PedidoItem } from "@/types/pedido";
 
-export default function PedidoCard({ pedido }: { pedido: Pedido }) {
+export default function PedidoCard({
+  pedido,
+  onEntregado,
+}: {
+  pedido: Pedido;
+  onEntregado?: () => void;
+}) {
   const [estadoLocal, setEstadoLocal] = useState<string>(
     pedido.estado ?? "pendiente"
   );
@@ -36,9 +42,16 @@ export default function PedidoCard({ pedido }: { pedido: Pedido }) {
     }
 
     if (nuevoEstado === "entregado") {
+      // Notifica al ResumenVentas de inmediato (antes de la animación)
       window.dispatchEvent(new CustomEvent("resumen-actualizar"));
       setSaliendo(true);
-      setTimeout(() => setVisible(false), 300);
+      setTimeout(() => {
+        if (onEntregado) {
+          onEntregado(); // El padre (CocinaListado) elimina el card de la lista
+        } else {
+          setVisible(false); // Fallback si se usa sin padre gestionado
+        }
+      }, 300);
     } else {
       setEstadoLocal(nuevoEstado);
     }

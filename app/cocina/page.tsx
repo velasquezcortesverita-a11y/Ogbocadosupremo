@@ -1,8 +1,10 @@
 import { supabase } from "@/lib/supabase";
-import PedidoCard from "@/components/cocina/PedidoCard";
+import CocinaListado from "@/components/cocina/CocinaListado";
 import ResumenVentas from "@/components/cocina/ResumenVentas";
 import { Utensils } from "lucide-react";
 import type { Pedido } from "@/types/pedido";
+
+export const dynamic = "force-dynamic";
 
 export default async function CocinaPage() {
   const { data: rawPedidos } = await supabase
@@ -32,28 +34,11 @@ export default async function CocinaPage() {
             <h1 className="text-2xl font-extrabold text-gray-900">
               Panel de Cocina
             </h1>
-            <p className="text-sm text-gray-500">
-              {pedidos.length} pedidos activos
-            </p>
           </div>
         </div>
 
         <ResumenVentas />
-
-        {pedidos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center text-gray-400">
-            <span className="text-6xl block mb-4">🍳</span>
-            <p className="font-semibold text-gray-500">
-              No hay pedidos activos
-            </p>
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {pedidos.map((pedido) => (
-              <PedidoCard key={pedido.id} pedido={pedido} />
-            ))}
-          </div>
-        )}
+        <CocinaListado initialPedidos={pedidos} />
       </div>
     </main>
   );
