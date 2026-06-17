@@ -1,0 +1,248 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import {
+  Leaf, Clock, Tag, MapPin,
+  UtensilsCrossed, Star,
+  Flame, ShoppingBag,
+} from "lucide-react";
+import { useDeliveryStore } from "@/store/deliveryStore";
+
+// ─── Tipos ───────────────────────────────────────────────────────────────────
+
+type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
+
+// ─── Datos ───────────────────────────────────────────────────────────────────
+
+const CHIPS: { Icon: IconComponent; label: string }[] = [
+  { Icon: Leaf,  label: "Ingredientes frescos" },
+  { Icon: Clock, label: "Listo en 25 min"      },
+  { Icon: Tag,   label: "Sin comisión"          },
+];
+
+const CATEGORIAS = [
+  { emoji: "🍔", label: "Hamburguesas",         href: "/menu#hamburguesas"        },
+  { emoji: "🍔", label: "Hamburguesas Premium", href: "/menu#hamburguesas_premium" },
+  { emoji: "🌮", label: "Antojitos",            href: "/menu#antojitos"            },
+  { emoji: "🍗", label: "Pollo",                href: "/menu#pollo"                },
+  { emoji: "📦", label: "Súper Combos",         href: "/menu#super_combos"         },
+  { emoji: "⚽", label: "Combos Futboleros",    href: "/menu#combos_futboleros"    },
+  { emoji: "🍗", label: "Combos de Pollo",      href: "/menu#combos_de_pollo"      },
+  { emoji: "🥤", label: "Bebidas",              href: "/menu#bebidas"              },
+  { emoji: "➕", label: "Extras",               href: "/menu#extras"               },
+];
+
+const PROPUESTAS: { Icon: IconComponent; titulo: string; texto: string }[] = [
+  {
+    Icon: Flame,
+    titulo: "Ingredientes frescos",
+    texto: "Carne angus, vegetales del día y salsas artesanales.",
+  },
+  {
+    Icon: Clock,
+    titulo: "Listo en 25 min",
+    texto: "Preparamos tu pedido al momento, sin demoras.",
+  },
+  {
+    Icon: ShoppingBag,
+    titulo: "Fácil de pedir",
+    texto: "Selecciona, personaliza y confirma en segundos.",
+  },
+];
+
+// ─── Tokens glass para secciones inferiores ──────────────────────────────────
+
+const GLASS_CAT: React.CSSProperties = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.08)",
+};
+
+const GLASS_PROP: React.CSSProperties = {
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.08)",
+};
+
+const GLASS_CTA: React.CSSProperties = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: "24px",
+};
+
+const ICON_BG: React.CSSProperties = {
+  background: "rgba(249,115,22,0.15)",
+};
+
+// ─── Página ──────────────────────────────────────────────────────────────────
+
+export default function Home() {
+  const { openModal } = useDeliveryStore();
+
+  return (
+    <div className="min-h-screen bg-[#141414]">
+
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <section className="relative flex flex-col items-center justify-center text-center min-h-[calc(100vh-4rem)] px-4 py-20 overflow-hidden">
+
+        {/* Glow naranja sutil en la parte superior */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: [
+              "radial-gradient(ellipse at 50% 0%, rgba(180,60,0,0.40) 0%, rgba(10,5,0,0) 65%)",
+              "linear-gradient(to bottom, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0) 60%)",
+            ].join(", "),
+          }}
+        />
+
+        {/* Contenido del hero — z-10 para quedar sobre el glow */}
+        <div className="relative z-10 flex flex-col items-center w-full max-w-sm mx-auto gap-6">
+
+          {/* Badge "Abierto ahora" */}
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/8 border border-white/15 text-white/85 text-sm">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+            Abierto ahora · 25–35 min
+          </span>
+
+          {/* Logo circular con ring naranja */}
+          <div className="ring-2 ring-orange-500/30 rounded-full p-0.5">
+            <Image
+              src="/images/logo-bocado-supremo.png"
+              alt="Bocado Supremo"
+              width={112}
+              height={112}
+              className="w-28 h-28 rounded-full object-contain"
+              priority
+            />
+          </div>
+
+          {/* Bloque de texto */}
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-white/40 text-xs tracking-widest uppercase font-semibold">
+              Bocado Supremo
+            </p>
+            <h1 className="text-5xl font-black text-white leading-tight tracking-tight">
+              La mejor comida
+              <br />
+              <span className="text-orange-500">rápida</span>
+            </h1>
+            <p className="text-white/55 text-sm mt-1 leading-relaxed">
+              Hamburguesas artesanales, combos y más.<br />
+              Ingredientes frescos, listos en minutos.
+            </p>
+            <p className="flex items-center gap-1.5 text-white/35 text-xs mt-0.5">
+              <MapPin size={12} className="text-orange-500/60 shrink-0" />
+              Escazú &amp; San Pedro
+            </p>
+          </div>
+
+          {/* Botones principales */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <Link
+              href="/menu"
+              className="flex-1 text-center text-white bg-white/8 border border-white/15 rounded-2xl px-6 py-3.5 text-sm font-medium hover:bg-white/15 transition-colors"
+            >
+              Ver menú completo
+            </Link>
+            <button
+              onClick={openModal}
+              className="flex-1 text-white bg-orange-500 hover:bg-orange-600 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-colors"
+            >
+              Mi pedido
+            </button>
+          </div>
+
+          {/* Grid de accesos rápidos */}
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <Link
+              href="/menu"
+              className="flex flex-col gap-2 bg-white/5 border border-white/8 rounded-2xl p-4 text-left hover:bg-white/10 transition-colors"
+            >
+              <UtensilsCrossed size={20} className="text-orange-500" />
+              <span className="text-white text-sm font-semibold leading-tight">Menú</span>
+              <span className="text-white/40 text-xs leading-snug">Ver todos los platillos</span>
+            </Link>
+            <div className="flex flex-col gap-2 bg-white/5 border border-white/8 rounded-2xl p-4 text-left cursor-pointer hover:bg-white/10 transition-colors">
+              <Star size={20} className="text-orange-500" />
+              <span className="text-white text-sm font-semibold leading-tight">
+                Programa de lealtad
+              </span>
+              <span className="text-white/40 text-xs leading-snug">Descuentos exclusivos</span>
+            </div>
+          </div>
+
+          {/* Chips inferiores */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {CHIPS.map(({ Icon, label }) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-white/55 text-xs"
+              >
+                <Icon size={14} className="text-orange-500 shrink-0" />
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CATEGORÍAS ───────────────────────────────────────────────────── */}
+      <section className="py-16 px-4 w-full">
+        <h2 className="text-2xl font-bold text-white text-center mb-6">
+          ¿Qué quieres hoy?
+        </h2>
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 max-w-4xl mx-auto">
+          {CATEGORIAS.map((cat) => (
+            <Link
+              key={cat.href}
+              href={cat.href}
+              className="flex flex-col items-center gap-2 rounded-2xl py-5 px-3 transition-all text-center hover:bg-white/10"
+              style={GLASS_CAT}
+            >
+              <span className="text-3xl">{cat.emoji}</span>
+              <span className="text-xs font-semibold text-white/70">{cat.label}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ── PROPUESTA DE VALOR ───────────────────────────────────────────── */}
+      <section className="py-16 max-w-3xl mx-auto px-4">
+        <h2 className="text-2xl font-bold text-white text-center mb-8">
+          ¿Por qué Bocado Supremo?
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {PROPUESTAS.map(({ Icon, titulo, texto }) => (
+            <div
+              key={titulo}
+              className="rounded-2xl p-6 text-center"
+              style={GLASS_PROP}
+            >
+              <div className="p-3 rounded-xl inline-flex" style={ICON_BG}>
+                <Icon size={22} className="text-orange-500" />
+              </div>
+              <p className="text-white font-semibold mt-4 mb-1">{titulo}</p>
+              <p className="text-white/45 text-sm leading-relaxed">{texto}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── CTA FINAL ────────────────────────────────────────────────────── */}
+      <section className="py-20 text-center px-4 w-full">
+        <div className="max-w-lg mx-auto p-10" style={GLASS_CTA}>
+          <h2 className="text-3xl font-bold text-white mb-2">¿Listo para pedir?</h2>
+          <p className="text-white/55 mb-6">
+            Explora el menú completo y arma tu pedido.
+          </p>
+          <Link
+            href="/menu"
+            className="inline-block text-white bg-orange-500 hover:bg-orange-600 font-semibold px-10 py-4 rounded-2xl text-base transition-colors"
+          >
+            Ver menú →
+          </Link>
+        </div>
+      </section>
+    </div>
+  );
+}
