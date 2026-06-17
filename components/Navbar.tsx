@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { ShoppingCart, Menu, X } from "lucide-react";
+import { ShoppingCart, Menu, X, MapPin } from "lucide-react";
 import { useCartStore } from "@/store/carstore";
 
 const NAV_LINKS = [
@@ -30,9 +30,15 @@ export default function Navbar() {
             className="object-contain rounded-full"
             priority
           />
-          <span className="font-bold text-base text-white leading-none">
-            Bocado <span className="text-orange-500">Supremo</span>
-          </span>
+          <div className="flex flex-col leading-none">
+            <span className="font-bold text-base text-white">
+              Bocado <span className="text-orange-500">Supremo</span>
+            </span>
+            <span className="flex items-center gap-1 text-[10px] text-white/40 mt-0.5">
+              <MapPin size={9} className="text-orange-500/50 shrink-0" />
+              700 m este de la Y, Santa Eulalia, Atenas
+            </span>
+          </div>
         </Link>
 
         {/* Links desktop */}

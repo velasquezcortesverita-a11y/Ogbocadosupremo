@@ -7,7 +7,6 @@ import {
   UtensilsCrossed, Star,
   Flame, ShoppingBag,
 } from "lucide-react";
-import { useDeliveryStore } from "@/store/deliveryStore";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -76,8 +75,6 @@ const ICON_BG: React.CSSProperties = {
 // ─── Página ──────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const { openModal } = useDeliveryStore();
-
   return (
     <div className="min-h-screen bg-[#141414]">
 
@@ -132,7 +129,7 @@ export default function Home() {
             </p>
             <p className="flex items-center gap-1.5 text-white/35 text-xs mt-0.5">
               <MapPin size={12} className="text-orange-500/60 shrink-0" />
-              Escazú &amp; San Pedro
+              Santa Eulalia, Atenas
             </p>
           </div>
 
@@ -144,12 +141,12 @@ export default function Home() {
             >
               Ver menú completo
             </Link>
-            <button
-              onClick={openModal}
-              className="flex-1 text-white bg-orange-500 hover:bg-orange-600 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-colors"
+            <Link
+              href="/carrito"
+              className="flex-1 text-center text-white bg-orange-500 hover:bg-orange-600 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-colors"
             >
               Mi pedido
-            </button>
+            </Link>
           </div>
 
           {/* Grid de accesos rápidos */}
