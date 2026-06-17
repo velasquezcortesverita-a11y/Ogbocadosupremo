@@ -34,37 +34,89 @@ const METHOD_OPTIONS: MethodOption[] = [
   { value: "delivery", label: "Delivery", Icon: Bike   },
 ];
 
+const inputCls =
+  "w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm " +
+  "text-neutral-800 outline-none placeholder:text-neutral-400 " +
+  "focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all";
+
 export default function DeliveryModal() {
   const { isModalOpen, closeModal, onConfirm, selectedMethod, setMethod, address, setAddress } =
     useDeliveryStore();
-  const [busqueda, setBusqueda] = useState("");
+
+  const [busqueda,       setBusqueda]       = useState("");
+  const [zonaSeleccionada, setZonaSeleccionada] = useState<string | null>(null);
+  const [direccionExacta,  setDireccionExacta]  = useState("");
+  const [referencia,       setReferencia]        = useState("");
 
   if (!isModalOpen) return null;
 
+  // ── Derivados para la lista de zonas ────────────────────────────────────────
   const zonasFiltradas = ZONAS.filter((z) =>
     z.toLowerCase().includes(busqueda.toLowerCase())
   );
-
   const esCoincidenciaExacta = ZONAS.some(
     (z) => z.toLowerCase() === busqueda.trim().toLowerCase()
   );
   const mostrarOpcionPersonalizada = busqueda.trim() !== "" && !esCoincidenciaExacta;
 
-  const puedeComenzar = selectedMethod === "pickup" || address.trim() !== "";
+  // ── Habilitación del botón ───────────────────────────────────────────────────
+  const puedeComenzar =
+    selectedMethod === "pickup" ||
+    (zonaSeleccionada !== null && direccionExacta.trim() !== "") ||
+    (zonaSeleccionada === null && address.trim() !== "");
 
+  // ── Manejadores ─────────────────────────────────────────────────────────────
   function handleCambiarMetodo(metodo: DeliveryMethod) {
     setMethod(metodo);
     setAddress("");
     setBusqueda("");
+    setZonaSeleccionada(null);
+    setDireccionExacta("");
+    setReferencia("");
+  }
+
+  function handleSeleccionarZona(zona: string) {
+    setZonaSeleccionada(zona);
+    setDireccionExacta("");
+    setReferencia("");
+  }
+
+  function handleCambiarZona() {
+    setZonaSeleccionada(null);
+    setDireccionExacta("");
+    setReferencia("");
+    setBusqueda("");
+    setAddress("");
   }
 
   function handleConfirmar() {
     if (selectedMethod === "pickup") {
       setAddress(`${SUCURSAL.nombre} · ${SUCURSAL.linea1}, ${SUCURSAL.linea2}`);
+    } else if (zonaSeleccionada) {
+      const partes = [zonaSeleccionada, direccionExacta.trim(), referencia.trim()].filter(Boolean);
+      setAddress(partes.join(" · "));
     }
+    // Si es dirección personalizada, address ya está en el store
     onConfirm?.();
     closeModal();
   }
+
+  // ── Estilos inline para la transición lista ↔ campos ────────────────────────
+  const listStyle: React.CSSProperties = {
+    maxHeight: zonaSeleccionada ? 0 : "400px",
+    opacity:   zonaSeleccionada ? 0 : 1,
+    overflow:  "hidden",
+    transition: "max-height 200ms ease, opacity 200ms ease",
+    pointerEvents: zonaSeleccionada ? "none" : "auto",
+  };
+
+  const cardStyle: React.CSSProperties = {
+    maxHeight: !zonaSeleccionada ? 0 : "400px",
+    opacity:   !zonaSeleccionada ? 0 : 1,
+    overflow:  "hidden",
+    transition: "max-height 200ms ease, opacity 200ms ease",
+    pointerEvents: !zonaSeleccionada ? "none" : "auto",
+  };
 
   return (
     <div
@@ -105,16 +157,8 @@ export default function DeliveryModal() {
                     : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
                 )}
               >
-                <Icon
-                  size={26}
-                  className={cn(isActive ? "text-orange-500" : "text-neutral-400")}
-                />
-                <span
-                  className={cn(
-                    "text-sm font-semibold",
-                    isActive ? "text-orange-600" : "text-neutral-600"
-                  )}
-                >
+                <Icon size={26} className={cn(isActive ? "text-orange-500" : "text-neutral-400")} />
+                <span className={cn("text-sm font-semibold", isActive ? "text-orange-600" : "text-neutral-600")}>
                   {label}
                 </span>
               </button>
@@ -122,9 +166,8 @@ export default function DeliveryModal() {
           })}
         </div>
 
-        {/* Contenido según método */}
-        {selectedMethod === "pickup" ? (
-          /* ── PICKUP: tarjeta única ── */
+        {/* ── PICKUP: tarjeta única ── */}
+        {selectedMethod === "pickup" && (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4">
             <MapPin size={18} className="mt-0.5 shrink-0 text-orange-500" />
             <div>
@@ -133,73 +176,110 @@ export default function DeliveryModal() {
               <p className="text-xs text-neutral-500">{SUCURSAL.linea2}</p>
             </div>
           </div>
-        ) : (
-          /* ── DELIVERY: buscador + zonas ── */
+        )}
+
+        {/* ── DELIVERY ── */}
+        {selectedMethod === "delivery" && (
           <div className="mb-6">
-            {/* Campo de búsqueda */}
-            <div className="mb-3 flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100">
-              <Search size={16} className="shrink-0 text-neutral-400" />
-              <input
-                type="text"
-                value={busqueda}
-                onChange={(e) => {
-                  setBusqueda(e.target.value);
-                  setAddress("");
-                }}
-                placeholder="Buscar zona o ingresar dirección..."
-                className="flex-1 bg-transparent text-sm text-neutral-800 outline-none placeholder:text-neutral-400"
-              />
+
+            {/* Vista 1: buscador + lista de zonas */}
+            <div style={listStyle}>
+              <div className="mb-3 flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100">
+                <Search size={16} className="shrink-0 text-neutral-400" />
+                <input
+                  type="text"
+                  value={busqueda}
+                  onChange={(e) => {
+                    setBusqueda(e.target.value);
+                    setAddress("");
+                  }}
+                  placeholder="Buscar zona o ingresar dirección..."
+                  className="flex-1 bg-transparent text-sm text-neutral-800 outline-none placeholder:text-neutral-400"
+                />
+              </div>
+
+              <ul className="max-h-52 overflow-y-auto divide-y divide-neutral-100 rounded-xl border border-neutral-100 overflow-hidden">
+                {zonasFiltradas.map((zona) => (
+                  <li key={zona}>
+                    <button
+                      onClick={() => handleSeleccionarZona(zona)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-neutral-700 transition-colors hover:bg-orange-50"
+                    >
+                      <MapPin size={14} className="shrink-0 text-neutral-400" />
+                      {zona}
+                    </button>
+                  </li>
+                ))}
+
+                {mostrarOpcionPersonalizada && (
+                  <li>
+                    <button
+                      onClick={() => setAddress(busqueda.trim())}
+                      className={cn(
+                        "flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors",
+                        address === busqueda.trim()
+                          ? "bg-orange-50 font-medium text-orange-600"
+                          : "text-neutral-500 hover:bg-orange-50"
+                      )}
+                    >
+                      <MapPin size={14} className="shrink-0 text-neutral-400" />
+                      <span>
+                        Usar esta dirección:{" "}
+                        <span className="font-medium text-neutral-800">{busqueda.trim()}</span>
+                      </span>
+                    </button>
+                  </li>
+                )}
+              </ul>
             </div>
 
-            {/* Lista de zonas */}
-            <ul className="max-h-52 overflow-y-auto divide-y divide-neutral-100 rounded-xl border border-neutral-100 overflow-hidden">
-              {zonasFiltradas.map((zona) => (
-                <li key={zona}>
-                  <button
-                    onClick={() => {
-                      setAddress(zona);
-                      setBusqueda(zona);
-                    }}
-                    className={cn(
-                      "flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors",
-                      address === zona
-                        ? "bg-orange-50 font-medium text-orange-600"
-                        : "text-neutral-700 hover:bg-orange-50"
-                    )}
-                  >
-                    <MapPin
-                      size={14}
-                      className={cn(
-                        "shrink-0",
-                        address === zona ? "text-orange-500" : "text-neutral-400"
-                      )}
-                    />
-                    {zona}
-                  </button>
-                </li>
-              ))}
+            {/* Vista 2: tarjeta de zona + campos de dirección */}
+            <div style={cardStyle}>
+              {/* Tarjeta de zona seleccionada */}
+              <div className="mb-4 flex items-center justify-between rounded-xl border border-orange-400 bg-[#fff7f0] px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <MapPin size={16} className="shrink-0 text-orange-500" />
+                  <span className="text-sm font-semibold text-orange-700">
+                    {zonaSeleccionada}
+                  </span>
+                </div>
+                <button
+                  onClick={handleCambiarZona}
+                  className="text-xs font-medium text-orange-500 hover:text-orange-700 transition-colors ml-3 shrink-0"
+                >
+                  Cambiar
+                </button>
+              </div>
 
-              {/* Opción personalizada cuando el texto no coincide con ninguna zona exactamente */}
-              {mostrarOpcionPersonalizada && (
-                <li>
-                  <button
-                    onClick={() => setAddress(busqueda.trim())}
-                    className={cn(
-                      "flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors",
-                      address === busqueda.trim()
-                        ? "bg-orange-50 font-medium text-orange-600"
-                        : "text-neutral-500 hover:bg-orange-50"
-                    )}
-                  >
-                    <MapPin size={14} className="shrink-0 text-neutral-400" />
-                    <span>
-                      Usar esta dirección:{" "}
-                      <span className="font-medium text-neutral-800">{busqueda.trim()}</span>
-                    </span>
-                  </button>
-                </li>
-              )}
-            </ul>
+              {/* Campo: Dirección exacta */}
+              <div className="mb-3">
+                <label className="mb-1.5 block text-sm font-medium text-neutral-700">
+                  Dirección exacta
+                </label>
+                <input
+                  type="text"
+                  value={direccionExacta}
+                  onChange={(e) => setDireccionExacta(e.target.value)}
+                  placeholder="Ej: 100m norte de la iglesia..."
+                  className={inputCls}
+                />
+              </div>
+
+              {/* Campo: Referencia */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-700">
+                  Referencia{" "}
+                  <span className="font-normal text-neutral-400">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={referencia}
+                  onChange={(e) => setReferencia(e.target.value)}
+                  placeholder="Ej: Casa blanca, portón negro..."
+                  className={inputCls}
+                />
+              </div>
+            </div>
           </div>
         )}
 
