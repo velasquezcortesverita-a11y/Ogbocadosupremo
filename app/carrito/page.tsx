@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 // ─── Constantes del negocio ───────────────────────────────────────────────────
-const WHATSAPP_NUMBER = "506XXXXXXXX"; // Ej. 50688888888
+const WHATSAPP_NUMBER = "50664106568";
 const SINPE_NUMBER    = "XXXX-XXXX";  // Ej. 8888-8888
 
 function WhatsAppIcon({ size = 18 }: { size?: number }) {
