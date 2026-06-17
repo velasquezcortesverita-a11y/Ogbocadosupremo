@@ -1,5 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import ImageUploader from "@/components/admin/ImageUploader";
+import ProductoDelMesUploader from "@/components/admin/ProductoDelMesUploader";
+import HeroMenuUploader from "@/components/admin/HeroMenuUploader";
 import { ImageIcon } from "lucide-react";
 
 type Producto = {
@@ -54,6 +56,12 @@ export default async function AdminProductosPage() {
             </p>
           </div>
         </div>
+
+        {/* Hero del menú */}
+        <HeroMenuUploader />
+
+        {/* Producto del mes */}
+        <ProductoDelMesUploader />
 
         {/* Grupos por categoría */}
         {grupos.map((grupo) => {

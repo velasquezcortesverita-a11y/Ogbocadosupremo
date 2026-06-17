@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Plus, ShoppingBag, Sandwich } from "lucide-react";
 import { useCartStore } from "@/store/carstore";
+import MenuHeroSlideshow from "@/components/menu/MenuHeroSlideshow";
 
 export type Producto = {
   id: string;
@@ -153,8 +154,12 @@ export default function MenuClient({ categorias }: { categorias: Categoria[] }) 
   return (
     <>
       {/* Hero */}
-      <div className="bg-gray-900 py-12 px-4">
-        <div className="max-w-5xl mx-auto">
+      <div
+        className="relative overflow-hidden py-12 px-4"
+        style={{ background: "#0d1117" }}
+      >
+        <MenuHeroSlideshow />
+        <div className="max-w-5xl mx-auto relative z-10">
           <p className="text-orange-400 text-xs font-semibold uppercase tracking-widest mb-2">
             Bocado Supremo
           </p>

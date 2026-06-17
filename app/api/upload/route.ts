@@ -19,6 +19,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No se recibió archivo" }, { status: 400 });
     }
 
+    // folder y publicId opcionales (sobreescriben el default de productos)
+    const folder   = (formData.get("folder")   as string | null) ?? "bocado-supremo/productos";
+    const publicId = (formData.get("publicId") as string | null) ?? productoId ?? undefined;
+
     const bytes  = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
@@ -26,8 +30,8 @@ export async function POST(req: NextRequest) {
       cloudinary.uploader
         .upload_stream(
           {
-            folder:      "bocado-supremo/productos",
-            public_id:   productoId ?? undefined,
+            folder,
+            public_id:   publicId,
             overwrite:   true,
             transformation: [
               { width: 800, height: 600, crop: "fill", gravity: "auto" },

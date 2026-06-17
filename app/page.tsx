@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import HorarioBadge from "@/components/HorarioBadge";
 import { useCartStore } from "@/store/carstore";
+import { supabase } from "@/lib/supabase";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -88,6 +90,18 @@ const PRODUCTO_DEL_MES = {
 
 export default function Home() {
   const agregarProducto = useCartStore((s) => s.agregarProducto);
+  const [imagenPDM, setImagenPDM] = useState<string>("");
+
+  useEffect(() => {
+    supabase
+      .from("configuracion")
+      .select("valor")
+      .eq("clave", "producto_del_mes_imagen")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.valor) setImagenPDM(data.valor);
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#141414]">
@@ -330,9 +344,9 @@ export default function Home() {
                 flexShrink: 0,
               }}
             >
-              {PRODUCTO_DEL_MES.imagen ? (
+              {imagenPDM ? (
                 <Image
-                  src={PRODUCTO_DEL_MES.imagen}
+                  src={imagenPDM}
                   alt={PRODUCTO_DEL_MES.nombre}
                   width={100}
                   height={100}
