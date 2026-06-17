@@ -75,6 +75,102 @@ function ExtraChip({ producto }: { producto: Producto }) {
   );
 }
 
+// ─── Bebidas ─────────────────────────────────────────────────────────────────
+
+type GrupoBebida = { nombre: string; emoji: string; productos: Producto[] };
+
+function agruparBebidas(productos: Producto[]): GrupoBebida[] {
+  const esCerveza = (n: string) => /cerveza|michelada/i.test(n);
+  const esGaseosa = (n: string) => /gaseosa|soda/i.test(n) && !esCerveza(n);
+
+  return [
+    { nombre: "Gaseosas", emoji: "🥤", productos: productos.filter((p) => esGaseosa(p.nombre)) },
+    { nombre: "Cervezas", emoji: "🍺", productos: productos.filter((p) => esCerveza(p.nombre)) },
+    { nombre: "Otras",    emoji: "🧃", productos: productos.filter((p) => !esGaseosa(p.nombre) && !esCerveza(p.nombre)) },
+  ].filter((g) => g.productos.length > 0);
+}
+
+function BebidaChip({ producto, emoji }: { producto: Producto; emoji: string }) {
+  const agregarProducto  = useCartStore((s) => s.agregarProducto);
+  const eliminarProducto = useCartStore((s) => s.eliminarProducto);
+  const enCarrito        = useCartStore((s) => s.items.some((i) => i.id === producto.id));
+
+  return (
+    <button
+      onClick={() => {
+        if (enCarrito) {
+          eliminarProducto(producto.id);
+        } else {
+          agregarProducto({ id: producto.id, nombre: producto.nombre, precio: Number(producto.precio) });
+        }
+      }}
+      className={`inline-flex items-center rounded-full border transition-all duration-150 cursor-pointer ${
+        enCarrito
+          ? "border-orange-500"
+          : "border-gray-200 hover:border-orange-400/40"
+      }`}
+      style={{
+        gap:        "10px",
+        padding:    "8px 14px",
+        background: enCarrito ? "rgba(249,115,22,0.08)" : "transparent",
+      }}
+    >
+      <span style={{ fontSize: 15, lineHeight: 1 }}>{emoji}</span>
+      <span
+        className={`text-xs leading-none ${
+          enCarrito ? "text-orange-600 font-medium" : "text-gray-700"
+        }`}
+      >
+        {producto.nombre}
+      </span>
+      <span
+        style={{
+          background:   "rgba(249,115,22,0.10)",
+          borderRadius: "10px",
+          padding:      "2px 8px",
+          fontSize:     "11px",
+          color:        "#f97316",
+          fontWeight:   500,
+          lineHeight:   1.4,
+        }}
+      >
+        ₡{Number(producto.precio).toLocaleString("es-CR")}
+      </span>
+    </button>
+  );
+}
+
+function BebidasSection({ productos }: { productos: Producto[] }) {
+  const grupos = agruparBebidas(productos);
+  return (
+    <div className="flex flex-col gap-6">
+      {grupos.map((grupo) => (
+        <div key={grupo.nombre}>
+          <p
+            style={{
+              fontSize:      "10px",
+              fontWeight:    600,
+              letterSpacing: "1.5px",
+              textTransform: "uppercase",
+              color:         "#9ca3af",
+              marginBottom:  "10px",
+            }}
+          >
+            {grupo.nombre}
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {grupo.productos.map((p) => (
+              <BebidaChip key={p.id} producto={p} emoji={grupo.emoji} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Tarjeta producto ─────────────────────────────────────────────────────────
+
 function ProductCard({ producto }: { producto: Producto }) {
   const agregarProducto = useCartStore((s) => s.agregarProducto);
 
@@ -220,7 +316,9 @@ export default function MenuClient({ categorias }: { categorias: Categoria[] }) 
             const disponibles = cat.productos.filter((p) => p.disponible);
             if (disponibles.length === 0) return null;
 
-            const esExtras = cat.nombre.toLowerCase().trim() === "extras";
+            const nombreCat = cat.nombre.toLowerCase().trim();
+            const esExtras   = nombreCat === "extras";
+            const esBebidas  = nombreCat === "bebidas";
 
             return (
               <section key={cat.id} className="mb-10">
@@ -231,7 +329,9 @@ export default function MenuClient({ categorias }: { categorias: Categoria[] }) 
                   </h2>
                 </div>
 
-                {esExtras ? (
+                {esBebidas ? (
+                  <BebidasSection productos={disponibles} />
+                ) : esExtras ? (
                   <div className="flex flex-wrap gap-1.5">
                     {disponibles.map((p) => (
                       <ExtraChip key={p.id} producto={p} />
