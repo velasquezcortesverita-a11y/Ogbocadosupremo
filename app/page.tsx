@@ -8,6 +8,7 @@ import {
   Flame, ShoppingBag,
 } from "lucide-react";
 import HorarioBadge from "@/components/HorarioBadge";
+import { useCartStore } from "@/store/carstore";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -73,9 +74,21 @@ const ICON_BG: React.CSSProperties = {
   background: "rgba(249,115,22,0.15)",
 };
 
+// ─── Producto del mes ─────────────────────────────────────────────────────────
+// Actualizar `id` con el UUID real del producto en Supabase → tabla productos
+const PRODUCTO_DEL_MES = {
+  id:          "00000000-0000-0000-0000-000000000000",
+  nombre:      "Bocado Supremo",
+  descripcion: "Doble carne, queso fundido y salsa especial de la casa",
+  precio:      5500,
+  imagen:      "",
+};
+
 // ─── Página ──────────────────────────────────────────────────────────────────
 
 export default function Home() {
+  const agregarProducto = useCartStore((s) => s.agregarProducto);
+
   return (
     <div className="min-h-screen bg-[#141414]">
 
@@ -177,6 +190,158 @@ export default function Home() {
                 {label}
               </span>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRODUCTO DEL MES ─────────────────────────────────────────────── */}
+      <section className="px-4 pb-2 w-full">
+        <div className="max-w-4xl mx-auto">
+          <div
+            style={{
+              border: "1px solid rgba(249,115,22,0.25)",
+              borderRadius: "16px",
+              overflow: "hidden",
+              position: "relative",
+              display: "flex",
+              minHeight: "120px",
+            }}
+          >
+            {/* Resplandor radial en la derecha */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "radial-gradient(ellipse at 85% 50%, rgba(249,115,22,0.09) 0%, transparent 65%)",
+                pointerEvents: "none",
+              }}
+            />
+
+            {/* Columna izquierda */}
+            <div
+              style={{
+                flex: 1,
+                padding: "20px 24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                position: "relative",
+              }}
+            >
+              {/* Badge */}
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  background: "rgba(249,115,22,0.15)",
+                  border: "1px solid rgba(249,115,22,0.3)",
+                  borderRadius: "20px",
+                  padding: "3px 10px",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  color: "#f97316",
+                  letterSpacing: "0.06em",
+                  width: "fit-content",
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#f97316",
+                    display: "inline-block",
+                    flexShrink: 0,
+                  }}
+                />
+                PRODUCTO DEL MES
+              </span>
+
+              {/* Nombre */}
+              <p
+                style={{
+                  fontSize: "22px",
+                  fontWeight: 500,
+                  color: "white",
+                  margin: 0,
+                  lineHeight: 1.3,
+                }}
+              >
+                {PRODUCTO_DEL_MES.nombre}
+              </p>
+
+              {/* Descripción */}
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "rgba(255,255,255,0.5)",
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}
+              >
+                {PRODUCTO_DEL_MES.descripcion}
+              </p>
+
+              {/* Precio + botón */}
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <span
+                  style={{ fontSize: "20px", color: "#f97316", fontWeight: 600 }}
+                >
+                  ₡{PRODUCTO_DEL_MES.precio.toLocaleString("es-CR")}
+                </span>
+                <button
+                  onClick={() =>
+                    agregarProducto({
+                      id:     PRODUCTO_DEL_MES.id,
+                      nombre: PRODUCTO_DEL_MES.nombre,
+                      precio: PRODUCTO_DEL_MES.precio,
+                    })
+                  }
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    background: "#f97316",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  + Agregar
+                </button>
+              </div>
+            </div>
+
+            {/* Columna derecha — imagen */}
+            <div
+              style={{
+                width: 130,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(249,115,22,0.07)",
+                borderLeft: "1px solid rgba(249,115,22,0.15)",
+                flexShrink: 0,
+              }}
+            >
+              {PRODUCTO_DEL_MES.imagen ? (
+                <Image
+                  src={PRODUCTO_DEL_MES.imagen}
+                  alt={PRODUCTO_DEL_MES.nombre}
+                  width={100}
+                  height={100}
+                  className="object-contain"
+                />
+              ) : (
+                <span style={{ fontSize: "64px", lineHeight: 1 }}>🍔</span>
+              )}
+            </div>
           </div>
         </div>
       </section>

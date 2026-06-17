@@ -25,6 +25,55 @@ export type Categoria = {
 
 const fmt = (n: number) => "₡" + Number(n).toLocaleString("es-CR");
 
+function ExtraChip({ producto }: { producto: Producto }) {
+  const agregarProducto  = useCartStore((s) => s.agregarProducto);
+  const eliminarProducto = useCartStore((s) => s.eliminarProducto);
+  const enCarrito        = useCartStore((s) => s.items.some((i) => i.id === producto.id));
+
+  return (
+    <button
+      onClick={() => {
+        if (enCarrito) {
+          eliminarProducto(producto.id);
+        } else {
+          agregarProducto({
+            id:     producto.id,
+            nombre: producto.nombre,
+            precio: Number(producto.precio),
+          });
+        }
+      }}
+      className={`inline-flex items-center gap-2 rounded-full border transition-all duration-150 cursor-pointer ${
+        enCarrito
+          ? "border-orange-500 bg-orange-50"
+          : "border-gray-200 bg-transparent hover:border-orange-400/50"
+      }`}
+      style={{ padding: "7px 12px" }}
+    >
+      <span
+        className={`text-[13px] leading-none ${
+          enCarrito ? "text-orange-600 font-medium" : "text-gray-700"
+        }`}
+      >
+        {producto.nombre}
+      </span>
+      <span
+        style={{
+          background:   "rgba(249,115,22,0.12)",
+          borderRadius: "10px",
+          padding:      "2px 7px",
+          fontSize:     "11px",
+          color:        "#f97316",
+          fontWeight:   500,
+          lineHeight:   1.4,
+        }}
+      >
+        ₡{Number(producto.precio).toLocaleString("es-CR")}
+      </span>
+    </button>
+  );
+}
+
 function ProductCard({ producto }: { producto: Producto }) {
   const agregarProducto = useCartStore((s) => s.agregarProducto);
 
@@ -166,6 +215,8 @@ export default function MenuClient({ categorias }: { categorias: Categoria[] }) 
             const disponibles = cat.productos.filter((p) => p.disponible);
             if (disponibles.length === 0) return null;
 
+            const esExtras = cat.nombre.toLowerCase().trim() === "extras";
+
             return (
               <section key={cat.id} className="mb-10">
                 <div className="flex items-center gap-2 mb-4">
@@ -175,11 +226,19 @@ export default function MenuClient({ categorias }: { categorias: Categoria[] }) 
                   </h2>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {disponibles.map((p) => (
-                    <ProductCard key={p.id} producto={p} />
-                  ))}
-                </div>
+                {esExtras ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {disponibles.map((p) => (
+                      <ExtraChip key={p.id} producto={p} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {disponibles.map((p) => (
+                      <ProductCard key={p.id} producto={p} />
+                    ))}
+                  </div>
+                )}
               </section>
             );
           })
