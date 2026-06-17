@@ -263,7 +263,9 @@ export default function CarritoPage() {
                       type="text"
                       placeholder="Ej. Juan Pérez"
                       value={nombre}
-                      onChange={(e) => setNombre(e.target.value)}
+                      onChange={(e) =>
+                        setNombre(e.target.value.replace(/[0-9]/g, ""))
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -274,9 +276,13 @@ export default function CarritoPage() {
                     </label>
                     <input
                       type="tel"
-                      placeholder="Ej. 8888-8888"
+                      inputMode="numeric"
+                      placeholder="Ej. 88888888"
+                      maxLength={8}
                       value={telefono}
-                      onChange={(e) => setTelefono(e.target.value)}
+                      onChange={(e) =>
+                        setTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))
+                      }
                       className={inputClass}
                     />
                   </div>
