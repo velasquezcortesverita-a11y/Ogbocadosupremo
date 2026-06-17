@@ -7,6 +7,7 @@ import {
   UtensilsCrossed, Star,
   Flame, ShoppingBag,
 } from "lucide-react";
+import HorarioBadge from "@/components/HorarioBadge";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -96,10 +97,7 @@ export default function Home() {
         <div className="relative z-10 flex flex-col items-center w-full max-w-sm mx-auto gap-6">
 
           {/* Badge "Abierto ahora" */}
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/8 border border-white/15 text-white/85 text-sm">
-            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-            Abierto ahora · 25–35 min
-          </span>
+          <HorarioBadge />
 
           {/* Logo circular con ring naranja */}
           <div className="ring-2 ring-orange-500/30 rounded-full p-0.5">
