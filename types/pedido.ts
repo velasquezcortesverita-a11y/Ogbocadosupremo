@@ -28,5 +28,6 @@ export type Pedido = {
   created_at: string;
   delivery_method: "pickup" | "delivery" | null;
   delivery_address: string | null;
+  comprobante_url?: string | null;
   pedido_items?: PedidoItem[];
 };

@@ -19,6 +19,7 @@ export default async function CocinaPage() {
       )
     `)
     .neq("estado", "entregado")
+    .neq("estado", "pago_rechazado")
     .order("created_at", { ascending: false });
 
   const pedidos = (rawPedidos ?? []) as Pedido[];

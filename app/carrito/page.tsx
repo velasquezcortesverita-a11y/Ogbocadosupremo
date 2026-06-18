@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -14,20 +14,11 @@ import {
   ShoppingBag,
   CheckCircle2,
   CheckCircle,
-  Phone,
+  Loader2,
 } from "lucide-react";
 
 // ─── Constantes del negocio ───────────────────────────────────────────────────
-const WHATSAPP_NUMBER = "50664106568";
-const SINPE_NUMBER    = "XXXX-XXXX";  // Ej. 8888-8888
-
-function WhatsAppIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-    </svg>
-  );
-}
+const SINPE_NUMBER = "XXXX-XXXX"; // Ej. 8888-8888
 
 export default function CarritoPage() {
   const items = useCartStore((state) => state.items);
@@ -44,10 +35,17 @@ export default function CarritoPage() {
   const [enviando, setEnviando] = useState(false);
   const [pedidoEnviado, setPedidoEnviado] = useState(false);
   const [pedidoSinpe, setPedidoSinpe] = useState<{
-    numeroPedido: number | string;
-    totalPedido:  number;
+    pedidoId:      string;
+    numeroPedido:  number | string;
+    totalPedido:   number;
     nombreCliente: string;
   } | null>(null);
+  const [comprobanteFile, setComprobanteFile]         = useState<File | null>(null);
+  const [comprobantePreview, setComprobantePreview]   = useState<string | null>(null);
+  const [subiendoComprobante, setSubiendoComprobante] = useState(false);
+  const [comprobanteEnviado, setComprobanteEnviado]   = useState(false);
+  const [comprobanteError, setComprobanteError]       = useState<string | null>(null);
+  const comprobanteInputRef = useRef<HTMLInputElement>(null);
 
   const { openModal, setOnConfirm } = useDeliveryStore();
   const router = useRouter();
@@ -124,6 +122,7 @@ export default function CarritoPage() {
 
     if (pagoLocal === "sinpe") {
       setPedidoSinpe({
+        pedidoId:      (pedido as { id: string }).id,
         numeroPedido:  (pedido as { numero_pedido: number | string }).numero_pedido,
         totalPedido:   totalLocal,
         nombreCliente: nombreLocal,
@@ -144,6 +143,58 @@ export default function CarritoPage() {
     openModal();
   };
 
+  const handleComprobanteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(file.type)) {
+      setComprobanteError("Solo se permiten imágenes JPG, PNG o WEBP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setComprobanteError("La imagen no puede superar 5MB.");
+      return;
+    }
+    setComprobanteError(null);
+    if (comprobantePreview) URL.revokeObjectURL(comprobantePreview);
+    setComprobanteFile(file);
+    setComprobantePreview(URL.createObjectURL(file));
+  };
+
+  const handleConfirmarPago = async () => {
+    if (!comprobanteFile || !pedidoSinpe) return;
+    setSubiendoComprobante(true);
+    setComprobanteError(null);
+    try {
+      const form = new FormData();
+      form.append("file", comprobanteFile);
+      form.append("folder", "bocado-supremo/comprobantes");
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      if (!res.ok) throw new Error("Error al subir el comprobante.");
+      const { url } = (await res.json()) as { url: string };
+      const { error } = await supabase
+        .from("pedidos")
+        .update({ comprobante_url: url })
+        .eq("id", pedidoSinpe.pedidoId);
+      if (error) throw new Error(error.message);
+      setComprobanteEnviado(true);
+    } catch (err) {
+      setComprobanteError(err instanceof Error ? err.message : "Error al enviar el comprobante.");
+    } finally {
+      setSubiendoComprobante(false);
+    }
+  };
+
+  const cerrarSinpe = () => {
+    if (comprobantePreview) URL.revokeObjectURL(comprobantePreview);
+    setComprobanteFile(null);
+    setComprobantePreview(null);
+    setComprobanteEnviado(false);
+    setComprobanteError(null);
+    setPedidoSinpe(null);
+    document.body.style.overflow = "";
+    router.push("/");
+  };
+
   const inputClass =
     "w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all bg-white";
 
@@ -153,16 +204,16 @@ export default function CarritoPage() {
       {pedidoSinpe && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div
-            className="bg-white w-full max-w-sm shadow-xl overflow-hidden"
-            style={{ borderRadius: 16 }}
+            className="bg-white w-full max-w-sm shadow-xl overflow-y-auto"
+            style={{ borderRadius: 16, maxHeight: "90vh" }}
           >
             {/* Saludo */}
             <div className="pt-7 pb-5 px-6 text-center">
-              <p style={{ fontSize: 36, lineHeight: 1, marginBottom: 10 }}>🎉</p>
-              <p style={{ fontSize: 15, fontWeight: 500, color: "#111827", marginBottom: 4 }}>
+              <p style={{ fontSize: 32, lineHeight: 1, marginBottom: 10 }}>🎉</p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: "#111827", marginBottom: 4 }}>
                 ¡Gracias, {pedidoSinpe.nombreCliente}!
               </p>
-              <p style={{ fontSize: 12, color: "#6b7280" }}>
+              <p style={{ fontSize: 11, color: "#6b7280" }}>
                 Pedido #{pedidoSinpe.numeroPedido} · ₡
                 {Number(pedidoSinpe.totalPedido).toLocaleString("es-CR")}
               </p>
@@ -170,118 +221,118 @@ export default function CarritoPage() {
 
             <div style={{ height: 1, background: "#f3f4f6", margin: "0 24px" }} />
 
-            {/* Tarjeta SINPE */}
-            <div style={{ margin: "16px 16px 0", borderRadius: 12, overflow: "hidden", border: "1px solid #e5e7eb" }}>
-              {/* Header naranja */}
+            <div style={{ padding: "14px 16px 0" }}>
+              {/* Datos SINPE */}
               <div
                 style={{
-                  background:  "#f97316",
-                  padding:     "10px 14px",
-                  display:     "flex",
-                  alignItems:  "center",
-                  gap:         8,
+                  background:   "rgba(249,115,22,0.05)",
+                  border:       "1px solid rgba(249,115,22,0.15)",
+                  borderRadius: 10,
+                  padding:      "10px 14px",
+                  marginBottom: 12,
                 }}
               >
-                <Phone size={15} color="white" />
-                <span style={{ fontSize: 13, fontWeight: 600, color: "white" }}>
-                  Completá tu pago por SINPE
-                </span>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0" }}>
+                  <span style={{ color: "#9ca3af" }}>Número SINPE</span>
+                  <span style={{ color: "#111827", fontWeight: 600 }}>{SINPE_NUMBER}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0" }}>
+                  <span style={{ color: "#9ca3af" }}>Monto</span>
+                  <span style={{ color: "#f97316", fontWeight: 700 }}>
+                    ₡{Number(pedidoSinpe.totalPedido).toLocaleString("es-CR")}
+                  </span>
+                </div>
               </div>
 
-              {/* Filas de datos */}
-              <div style={{ background: "#fafafa", padding: "4px 14px 8px" }}>
-                {[
-                  {
-                    label: "Número",
-                    valor: <span style={{ fontWeight: 600 }}>{SINPE_NUMBER}</span>,
-                  },
-                  {
-                    label: "Monto exacto",
-                    valor: (
-                      <span style={{ color: "#f97316", fontWeight: 700, fontSize: 14 }}>
-                        ₡{Number(pedidoSinpe.totalPedido).toLocaleString("es-CR")}
-                      </span>
-                    ),
-                  },
-                  {
-                    label: "Concepto",
-                    valor: <span>Pedido #{pedidoSinpe.numeroPedido}</span>,
-                  },
-                ].map(({ label, valor }) => (
-                  <div
-                    key={label}
+              {/* Zona de subida / éxito */}
+              {comprobanteEnviado ? (
+                <div style={{ textAlign: "center", padding: "16px 0 4px", fontSize: 13, color: "#16a34a", fontWeight: 500 }}>
+                  Comprobante enviado, prepararemos tu pedido pronto 🙌
+                </div>
+              ) : (
+                <>
+                  <input
+                    ref={comprobanteInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleComprobanteChange}
+                  />
+
+                  {comprobantePreview ? (
+                    <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden", marginBottom: 10 }}>
+                      <img
+                        src={comprobantePreview}
+                        alt="Comprobante"
+                        style={{ width: "100%", maxHeight: 160, objectFit: "cover", display: "block" }}
+                      />
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderTop: "1px solid #f3f4f6" }}>
+                        <span style={{ fontSize: 11, color: "#6b7280", maxWidth: "70%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {comprobanteFile?.name}
+                        </span>
+                        <button
+                          onClick={() => comprobanteInputRef.current?.click()}
+                          style={{ fontSize: 11, color: "#f97316", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}
+                        >
+                          Cambiar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => comprobanteInputRef.current?.click()}
+                      style={{ border: "1.5px dashed #e5e7eb", borderRadius: 10, padding: "16px", textAlign: "center", cursor: "pointer", marginBottom: 10 }}
+                    >
+                      <span style={{ fontSize: 24, display: "block", marginBottom: 6 }}>📎</span>
+                      <p style={{ fontSize: 13, color: "#374151", fontWeight: 500, marginBottom: 3 }}>
+                        Subir foto del comprobante
+                      </p>
+                      <p style={{ fontSize: 11, color: "#9ca3af" }}>JPG, PNG · Máx. 5MB</p>
+                    </div>
+                  )}
+
+                  {comprobanteError && (
+                    <p style={{ fontSize: 11, color: "#dc2626", background: "#fef2f2", borderRadius: 8, padding: "6px 10px", marginBottom: 10 }}>
+                      {comprobanteError}
+                    </p>
+                  )}
+
+                  <button
+                    disabled={!comprobanteFile || subiendoComprobante}
+                    onClick={handleConfirmarPago}
                     style={{
+                      width:          "100%",
+                      background:     !comprobanteFile ? "#e5e7eb" : "#f97316",
+                      color:          !comprobanteFile ? "#9ca3af" : "white",
+                      border:         "none",
+                      borderRadius:   10,
+                      padding:        "12px",
+                      fontSize:       13,
+                      fontWeight:     500,
+                      cursor:         !comprobanteFile ? "not-allowed" : "pointer",
                       display:        "flex",
-                      justifyContent: "space-between",
                       alignItems:     "center",
-                      fontSize:       12,
-                      padding:        "6px 0",
-                      borderBottom:   "1px solid #f3f4f6",
+                      justifyContent: "center",
+                      gap:            8,
                     }}
                   >
-                    <span style={{ color: "#9ca3af" }}>{label}</span>
-                    <span style={{ color: "#111827" }}>{valor}</span>
-                  </div>
-                ))}
-              </div>
+                    {subiendoComprobante ? (
+                      <><Loader2 size={15} className="animate-spin" /> Subiendo...</>
+                    ) : (
+                      "Confirmar pago"
+                    )}
+                  </button>
+                </>
+              )}
             </div>
 
-            {/* Botón WhatsApp */}
-            <div style={{ padding: "14px 16px 4px" }}>
+            {/* Cerrar */}
+            <div style={{ padding: "12px 16px 20px", textAlign: "center" }}>
               <button
-                onClick={() => {
-                  const msg = encodeURIComponent(
-                    `Hola! 👋 Te envío el comprobante de pago.\n\n` +
-                    `🧾 Pedido: #${pedidoSinpe.numeroPedido}\n` +
-                    `👤 Nombre: ${pedidoSinpe.nombreCliente}\n` +
-                    `💰 Monto: ₡${Number(pedidoSinpe.totalPedido).toLocaleString("es-CR")}\n` +
-                    `💳 Método: SINPE Móvil\n\n` +
-                    `[Adjunto comprobante]`
-                  );
-                  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, "_blank");
-                }}
-                style={{
-                  width:          "100%",
-                  background:     "#25D366",
-                  color:          "white",
-                  border:         "none",
-                  borderRadius:   10,
-                  padding:        "12px",
-                  fontSize:       13,
-                  fontWeight:     500,
-                  cursor:         "pointer",
-                  display:        "flex",
-                  alignItems:     "center",
-                  justifyContent: "center",
-                  gap:            8,
-                }}
+                onClick={cerrarSinpe}
+                style={{ fontSize: 12, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}
               >
-                <WhatsAppIcon size={18} />
-                Enviar comprobante por WhatsApp
-              </button>
-            </div>
-
-            {/* Nota + cerrar */}
-            <div style={{ padding: "8px 16px 20px", textAlign: "center" }}>
-              <p style={{ fontSize: 10, color: "#9ca3af", marginBottom: 12 }}>
-                Tu pedido se prepara al recibir el comprobante
-              </p>
-              <button
-                onClick={() => {
-                  document.body.style.overflow = "";
-                  setPedidoSinpe(null);
-                  router.push("/");
-                }}
-                style={{
-                  fontSize:   12,
-                  color:      "#9ca3af",
-                  background: "none",
-                  border:     "none",
-                  cursor:     "pointer",
-                  padding:    "4px 8px",
-                }}
-              >
-                Cerrar
+                {comprobanteEnviado ? "Cerrar" : "Cerrar sin enviar"}
               </button>
             </div>
           </div>

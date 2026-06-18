@@ -15,9 +15,10 @@ export default function PedidoCard({
   const [estadoLocal, setEstadoLocal] = useState<string>(
     pedido.estado ?? "pendiente"
   );
-  const [saliendo, setSaliendo] = useState(false);
-  const [visible, setVisible] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [saliendo, setSaliendo]     = useState(false);
+  const [visible, setVisible]       = useState(true);
+  const [errorMsg, setErrorMsg]     = useState<string | null>(null);
+  const [pagoEstado, setPagoEstado] = useState<"confirmado" | "rechazado" | null>(null);
 
   const cambiarEstado = async (nuevoEstado: string) => {
     setErrorMsg(null);
@@ -57,11 +58,39 @@ export default function PedidoCard({
     }
   };
 
+  const confirmarPago = async () => {
+    const { error } = await supabase
+      .from("pedidos")
+      .update({ estado: "preparando" })
+      .eq("id", pedido.id)
+      .select("id");
+    if (error) { setErrorMsg("Error al confirmar el pago."); return; }
+    setPagoEstado("confirmado");
+    setEstadoLocal("preparando");
+  };
+
+  const rechazarPago = async () => {
+    const { error } = await supabase
+      .from("pedidos")
+      .update({ estado: "pago_rechazado" })
+      .eq("id", pedido.id)
+      .select("id");
+    if (error) { setErrorMsg("Error al rechazar el pago."); return; }
+    setPagoEstado("rechazado");
+    setSaliendo(true);
+    setTimeout(() => {
+      if (onEntregado) onEntregado();
+      else setVisible(false);
+    }, 300);
+  };
+
   if (!visible) return null;
 
-  const esPendiente = estadoLocal === "pendiente";
+  const esPendiente  = estadoLocal === "pendiente";
   const esPreparando = estadoLocal === "preparando";
-  const esDelivery  = pedido.delivery_method === "delivery";
+  const esDelivery   = pedido.delivery_method === "delivery";
+  const esSinpe      = pedido.metodo_pago === "sinpe";
+  const tieneComprobante = !!pedido.comprobante_url;
 
   return (
     <div
@@ -99,10 +128,22 @@ export default function PedidoCard({
           </div>
         )}
 
-        {esPendiente && (
+        {esPendiente && !esSinpe && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold bg-yellow-50 text-yellow-700 border-yellow-200 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
             Pendiente
+          </span>
+        )}
+        {esSinpe && !tieneComprobante && pagoEstado === null && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold bg-orange-50 text-orange-600 border-orange-200 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+            Pendiente pago
+          </span>
+        )}
+        {pagoEstado === "confirmado" && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold bg-green-50 text-green-700 border-green-200 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+            Pago confirmado
           </span>
         )}
       </div>
@@ -170,6 +211,51 @@ export default function PedidoCard({
           ₡{Number(pedido.total).toLocaleString("es-CR")}
         </span>
       </div>
+
+      {/* Comprobante SINPE */}
+      {esSinpe && tieneComprobante && pagoEstado !== "rechazado" && (
+        <div className="rounded-xl overflow-hidden border border-gray-100">
+          {/* Thumbnail */}
+          <a href={pedido.comprobante_url!} target="_blank" rel="noreferrer" className="block">
+            <img
+              src={pedido.comprobante_url!}
+              alt="Comprobante"
+              style={{ width: "100%", height: 60, objectFit: "cover", background: "rgba(249,115,22,0.06)", display: "block" }}
+            />
+          </a>
+          {/* Pie */}
+          <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 border-t border-gray-100">
+            <span className="text-xs text-gray-400">Comprobante SINPE</span>
+            <a
+              href={pedido.comprobante_url!}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium text-orange-500 hover:text-orange-600"
+            >
+              Ver →
+            </a>
+          </div>
+          {/* Confirmar / Rechazar */}
+          {pagoEstado === null && (
+            <div className="flex gap-2 p-2 border-t border-gray-100">
+              <button
+                onClick={confirmarPago}
+                style={{ flex: 1, background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.20)", color: "#16a34a" }}
+                className="rounded-lg py-1.5 text-xs font-semibold transition-colors"
+              >
+                Confirmar
+              </button>
+              <button
+                onClick={rechazarPago}
+                style={{ flex: 1, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", color: "#dc2626" }}
+                className="rounded-lg py-1.5 text-xs font-semibold transition-colors"
+              >
+                Rechazar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error inline */}
       {errorMsg && (
