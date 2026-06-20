@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import CocinaTabsWrapper from "@/components/cocina/CocinaTabsWrapper";
 import CocinaListado from "@/components/cocina/CocinaListado";
 import ResumenVentas from "@/components/cocina/ResumenVentas";
 import ComprobantesGrid from "@/components/cocina/ComprobantesGrid";
@@ -28,20 +29,23 @@ export default async function CocinaPage() {
   return (
     <main className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center gap-3 mb-10">
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
             <Utensils size={20} className="text-white" />
           </div>
-          <div>
-            <h1 className="text-2xl font-extrabold text-gray-900">
-              Panel de Cocina
-            </h1>
-          </div>
+          <h1 className="text-2xl font-extrabold text-gray-900">Panel de Cocina</h1>
         </div>
 
-        <ResumenVentas />
-        <ComprobantesGrid />
-        <CocinaListado initialPedidos={pedidos} />
+        {/* Tabs wrapper: Pedidos | Productos */}
+        <CocinaTabsWrapper>
+          {/* Slot "Pedidos" — contenido existente */}
+          <ResumenVentas />
+          <ComprobantesGrid />
+          <CocinaListado initialPedidos={pedidos} />
+        </CocinaTabsWrapper>
+
       </div>
     </main>
   );

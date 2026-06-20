@@ -94,9 +94,16 @@ export default function PedidoCard({
 
   return (
     <div
-      className={`bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col gap-4 animate-slide-up transition-all duration-300 ${
+      className={`bg-white rounded-3xl shadow-sm p-5 flex flex-col gap-4 animate-slide-up transition-all duration-300 ${
         saliendo ? "opacity-0 scale-95" : "opacity-100 scale-100"
       }`}
+      style={{
+        border: esPendiente
+          ? "1.5px solid rgba(249,115,22,0.5)"
+          : esPreparando
+          ? "1.5px solid rgba(59,130,246,0.5)"
+          : "1px solid #f3f4f6",
+      }}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
