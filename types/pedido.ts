@@ -29,5 +29,6 @@ export type Pedido = {
   delivery_method: "pickup" | "delivery" | null;
   delivery_address: string | null;
   comprobante_url?: string | null;
+  comprobante_revisado?: boolean | null;
   pedido_items?: PedidoItem[];
 };

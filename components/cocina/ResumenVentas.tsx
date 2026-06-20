@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  CreditCard,
   Banknote,
   Smartphone,
   TrendingUp,
@@ -13,12 +12,11 @@ import {
 } from "lucide-react";
 import type { CierreDia } from "@/types/pedido";
 
-type MetodoPago = "sinpe" | "efectivo" | "tarjeta";
+type MetodoPago = "sinpe" | "efectivo";
 type ResumenItem = { total: number; cantidad: number };
 type Resumen = {
   sinpe:    ResumenItem;
   efectivo: ResumenItem;
-  tarjeta:  ResumenItem;
   general:  ResumenItem;
 } | null;
 
@@ -67,7 +65,6 @@ export default function ResumenVentas() {
         setResumen({
           sinpe:    { total: cierre.total_sinpe,    cantidad: 0 },
           efectivo: { total: cierre.total_efectivo, cantidad: 0 },
-          tarjeta:  { total: cierre.total_tarjeta,  cantidad: 0 },
           general:  { total: cierre.total_general,  cantidad: cierre.cantidad_pedidos },
         });
         setUltimaActualizacion(
@@ -105,7 +102,6 @@ export default function ResumenVentas() {
     setResumen({
       sinpe:    { total: sum("sinpe"),    cantidad: count("sinpe")    },
       efectivo: { total: sum("efectivo"), cantidad: count("efectivo") },
-      tarjeta:  { total: sum("tarjeta"),  cantidad: count("tarjeta")  },
       general:  {
         total:    pedidos.reduce((acc, p) => acc + Number(p.total), 0),
         cantidad: pedidos.length,
@@ -146,7 +142,7 @@ export default function ResumenVentas() {
             fecha:            fechaHoy,
             total_sinpe:      resumen.sinpe.total,
             total_efectivo:   resumen.efectivo.total,
-            total_tarjeta:    resumen.tarjeta.total,
+            total_tarjeta:    0,
             total_general:    resumen.general.total,
             cantidad_pedidos: resumen.general.cantidad,
           },
@@ -204,14 +200,6 @@ export default function ResumenVentas() {
       bg: "rgba(34,197,94,0.1)",
       border: "rgba(34,197,94,0.2)",
     },
-    {
-      key: "tarjeta",
-      label: "Tarjeta",
-      icon: CreditCard,
-      color: "text-purple-400",
-      bg: "rgba(168,85,247,0.1)",
-      border: "rgba(168,85,247,0.2)",
-    },
   ];
 
   return (
@@ -234,10 +222,6 @@ export default function ResumenVentas() {
               <div className="flex justify-between text-sm py-2 border-b border-gray-100">
                 <span className="text-gray-600">Efectivo</span>
                 <span className="font-medium">{fmt(resumen.efectivo.total)}</span>
-              </div>
-              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
-                <span className="text-gray-600">Tarjeta</span>
-                <span className="font-medium">{fmt(resumen.tarjeta.total)}</span>
               </div>
               <div className="flex justify-between text-sm py-2 font-semibold">
                 <span>Total</span>

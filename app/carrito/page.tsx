@@ -523,7 +523,6 @@ export default function CarritoPage() {
                       <option value="">Seleccione una opción</option>
                       <option value="sinpe">SINPE Móvil</option>
                       <option value="efectivo">Efectivo</option>
-                      <option value="tarjeta">Tarjeta</option>
                     </select>
                   </div>
 

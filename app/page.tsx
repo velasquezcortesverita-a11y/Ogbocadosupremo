@@ -25,15 +25,14 @@ const CHIPS: { Icon: IconComponent; label: string }[] = [
 ];
 
 const CATEGORIAS = [
-  { emoji: "🍔", label: "Hamburguesas",         href: "/menu#hamburguesas"        },
-  { emoji: "🍔", label: "Hamburguesas Premium", href: "/menu#hamburguesas_premium" },
-  { emoji: "🌮", label: "Antojitos",            href: "/menu#antojitos"            },
-  { emoji: "🍗", label: "Pollo",                href: "/menu#pollo"                },
-  { emoji: "📦", label: "Súper Combos",         href: "/menu#super_combos"         },
-  { emoji: "⚽", label: "Combos Futboleros",    href: "/menu#combos_futboleros"    },
-  { emoji: "🍗", label: "Combos de Pollo",      href: "/menu#combos_de_pollo"      },
-  { emoji: "🥤", label: "Bebidas",              href: "/menu#bebidas"              },
-  { emoji: "➕", label: "Extras",               href: "/menu#extras"               },
+  { emoji: "🍔", label: "Hamburguesas",         href: "/menu?c=hamburguesas"        },
+  { emoji: "🍔", label: "Hamburguesas Premium", href: "/menu?c=hamburguesas-premium" },
+  { emoji: "🌮", label: "Antojitos",            href: "/menu?c=antojitos"            },
+  { emoji: "🍗", label: "Pollo",                href: "/menu?c=pollo"                },
+  { emoji: "📦", label: "Súper Combos",         href: "/menu?c=super-combos"         },
+  { emoji: "⚽", label: "Combos Futboleros",    href: "/menu?c=combos-futboleros"    },
+  { emoji: "🍗", label: "Combos de Pollo",      href: "/menu?c=combos-de-pollo"      },
+  { emoji: "🥤", label: "Bebidas",              href: "/menu?c=bebidas"              },
 ];
 
 const PROPUESTAS: { Icon: IconComponent; titulo: string; texto: string }[] = [

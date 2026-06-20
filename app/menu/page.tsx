@@ -2,7 +2,13 @@ import { supabase } from "@/lib/supabase";
 import MenuClient from "@/components/menu/MenuClient";
 import type { Categoria } from "@/components/menu/MenuClient";
 
-export default async function MenuPage() {
+export default async function MenuPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ c?: string }>;
+}) {
+  const { c } = await searchParams;
+
   const { data, error } = await supabase
     .from("categorias")
     .select(`
@@ -22,7 +28,7 @@ export default async function MenuPage() {
 
   return (
     <main>
-      <MenuClient categorias={categorias} />
+      <MenuClient categorias={categorias} initialCategoria={c} />
     </main>
   );
 }

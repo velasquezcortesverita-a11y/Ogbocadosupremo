@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import CocinaListado from "@/components/cocina/CocinaListado";
 import ResumenVentas from "@/components/cocina/ResumenVentas";
+import ComprobantesGrid from "@/components/cocina/ComprobantesGrid";
 import { Utensils } from "lucide-react";
 import type { Pedido } from "@/types/pedido";
 
@@ -39,6 +40,7 @@ export default async function CocinaPage() {
         </div>
 
         <ResumenVentas />
+        <ComprobantesGrid />
         <CocinaListado initialPedidos={pedidos} />
       </div>
     </main>

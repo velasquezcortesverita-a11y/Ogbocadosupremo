@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Plus, ShoppingBag, Sandwich } from "lucide-react";
@@ -25,6 +25,14 @@ export type Categoria = {
 };
 
 const fmt = (n: number) => "₡" + Number(n).toLocaleString("es-CR");
+
+function slugify(nombre: string): string {
+  return nombre
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, "-");
+}
 
 function ExtraChip({ producto }: { producto: Producto }) {
   const agregarProducto  = useCartStore((s) => s.agregarProducto);
@@ -233,7 +241,13 @@ function ProductCard({ producto }: { producto: Producto }) {
   );
 }
 
-export default function MenuClient({ categorias }: { categorias: Categoria[] }) {
+export default function MenuClient({
+  categorias,
+  initialCategoria = "",
+}: {
+  categorias: Categoria[];
+  initialCategoria?: string;
+}) {
   const [categoriaActiva, setCategoriaActiva] = useState<string>("todos");
 
   const items = useCartStore((s) => s.items);
@@ -241,6 +255,20 @@ export default function MenuClient({ categorias }: { categorias: Categoria[] }) 
   const router = useRouter();
 
   const totalItems = items.reduce((acc, item) => acc + item.cantidad, 0);
+
+  useEffect(() => {
+    if (!initialCategoria || categorias.length === 0) return;
+    const match = categorias.find((cat) => slugify(cat.nombre) === initialCategoria);
+    if (!match) return;
+    setCategoriaActiva(match.id);
+    setTimeout(() => {
+      const el = document.getElementById(`cat-${match.id}`);
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top, behavior: "smooth" });
+    }, 150);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const categoriasFiltradas =
     categoriaActiva === "todos"
@@ -321,7 +349,7 @@ export default function MenuClient({ categorias }: { categorias: Categoria[] }) 
             const esBebidas  = nombreCat === "bebidas";
 
             return (
-              <section key={cat.id} className="mb-10">
+              <section key={cat.id} id={`cat-${cat.id}`} className="mb-10">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1 h-6 bg-orange-500 rounded" />
                   <h2 className="text-xl font-bold text-gray-900">

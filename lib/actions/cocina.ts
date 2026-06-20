@@ -27,7 +27,6 @@ export async function getResumenVentas() {
   return {
     sinpe:    { total: sum("sinpe"),    cantidad: count("sinpe")    },
     efectivo: { total: sum("efectivo"), cantidad: count("efectivo") },
-    tarjeta:  { total: sum("tarjeta"),  cantidad: count("tarjeta")  },
     general:  {
       total:    data.reduce((acc, p) => acc + Number(p.total), 0),
       cantidad: data.length,
