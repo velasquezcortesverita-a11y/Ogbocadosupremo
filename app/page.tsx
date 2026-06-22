@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Leaf, Clock, Tag, MapPin,
-  UtensilsCrossed, Star,
+  UtensilsCrossed,
   Flame, ShoppingBag,
 } from "lucide-react";
 import HorarioBadge from "@/components/HorarioBadge";
@@ -52,6 +52,11 @@ const PROPUESTAS: { Icon: IconComponent; titulo: string; texto: string }[] = [
     texto: "Selecciona, personaliza y confirma en segundos.",
   },
 ];
+
+// ─── Redes sociales ──────────────────────────────────────────────────────────
+
+const INSTAGRAM_URL = "https://www.instagram.com/bocadosupremo?igsh=MXA2dnhmN252ZHprcA==";
+const FACEBOOK_URL  = "https://www.facebook.com/share/1QPhTJ4qSL/?mibextid=wwXIfr";
 
 // ─── Tokens glass para secciones inferiores ──────────────────────────────────
 
@@ -183,12 +188,37 @@ export default function Home() {
               <span className="text-white text-sm font-semibold leading-tight">Menú</span>
               <span className="text-white/40 text-xs leading-snug">Ver todos los platillos</span>
             </Link>
-            <div className="flex flex-col gap-2 bg-white/5 border border-white/8 rounded-2xl p-4 text-left cursor-pointer hover:bg-white/10 transition-colors">
-              <Star size={20} className="text-orange-500" />
-              <span className="text-white text-sm font-semibold leading-tight">
-                Programa de lealtad
-              </span>
-              <span className="text-white/40 text-xs leading-snug">Descuentos exclusivos</span>
+            <div className="flex flex-col gap-2 bg-white/5 border border-white/8 rounded-2xl p-4 text-left">
+              <span style={{ fontSize: 14, fontWeight: 500, color: "white", lineHeight: 1.2 }}>Síguenos</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.3 }}>Promos y novedades</span>
+              <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                {/* Instagram */}
+                <a
+                  href={INSTAGRAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center rounded-[10px] p-[10px] border-[0.5px] border-white/[0.08] bg-white/[0.03] transition-colors duration-200 hover:border-orange-500/30"
+                  style={{ color: "rgba(255,255,255,0.8)" }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="18" height="18">
+                    <rect x="2" y="2" width="20" height="20" rx="5" />
+                    <circle cx="12" cy="12" r="4" />
+                    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+                  </svg>
+                </a>
+                {/* Facebook */}
+                <a
+                  href={FACEBOOK_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center rounded-[10px] p-[10px] border-[0.5px] border-white/[0.08] bg-white/[0.03] transition-colors duration-200 hover:border-orange-500/30"
+                  style={{ color: "rgba(255,255,255,0.8)" }}
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                    <path d="M22 12a10 10 0 1 0-11.5 9.9v-7H7.9V12h2.6V9.8c0-2.6 1.5-4 3.9-4 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.3 0-1.7.8-1.7 1.6V12h2.9l-.5 2.9h-2.4v7A10 10 0 0 0 22 12Z" />
+                  </svg>
+                </a>
+              </div>
             </div>
           </div>
 
