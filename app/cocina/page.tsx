@@ -2,7 +2,6 @@ import { supabase } from "@/lib/supabase";
 import CocinaTabsWrapper from "@/components/cocina/CocinaTabsWrapper";
 import CocinaListado from "@/components/cocina/CocinaListado";
 import ResumenVentas from "@/components/cocina/ResumenVentas";
-import ComprobantesGrid from "@/components/cocina/ComprobantesGrid";
 import { Utensils } from "lucide-react";
 import type { Pedido } from "@/types/pedido";
 
@@ -42,7 +41,6 @@ export default async function CocinaPage() {
         <CocinaTabsWrapper>
           {/* Slot "Pedidos" — contenido existente */}
           <ResumenVentas />
-          <ComprobantesGrid />
           <CocinaListado initialPedidos={pedidos} />
         </CocinaTabsWrapper>
 
