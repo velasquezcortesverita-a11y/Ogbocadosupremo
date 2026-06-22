@@ -103,6 +103,9 @@ export default function PedidoCard({
           : esPreparando
           ? "1.5px solid rgba(59,130,246,0.5)"
           : "1px solid #f3f4f6",
+        overflow: "hidden",
+        isolation: "isolate",
+        position: "relative",
       }}
     >
       {/* Header */}
@@ -228,6 +231,7 @@ export default function PedidoCard({
               src={pedido.comprobante_url!}
               alt="Comprobante"
               style={{ width: "100%", height: 60, objectFit: "cover", background: "rgba(249,115,22,0.06)", display: "block" }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           </a>
           {/* Pie */}
