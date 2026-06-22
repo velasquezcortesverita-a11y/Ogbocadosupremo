@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import ProductosTab from "@/components/cocina/ProductosTab";
+import SinpesTab    from "@/components/cocina/SinpesTab";
+
+type Tab = "pedidos" | "sinpes" | "productos";
 
 export default function CocinaTabsWrapper({ children }: { children: React.ReactNode }) {
-  const [tab, setTab] = useState<"pedidos" | "productos">("pedidos");
+  const [tab, setTab] = useState<Tab>("pedidos");
 
   const pill = (active: boolean): React.CSSProperties => ({
     padding: "6px 18px",
@@ -27,17 +30,20 @@ export default function CocinaTabsWrapper({ children }: { children: React.ReactN
         <button style={pill(tab === "pedidos")}   onClick={() => setTab("pedidos")}>
           Pedidos
         </button>
+        <button style={pill(tab === "sinpes")}    onClick={() => setTab("sinpes")}>
+          Sinpes
+        </button>
         <button style={pill(tab === "productos")} onClick={() => setTab("productos")}>
           Productos
         </button>
       </div>
 
       {/*
-        Ambas pestañas se mantienen montadas (display none / block)
-        para que las suscripciones Realtime de Pedidos no se corten
-        al cambiar de tab.
+        Todas las pestañas permanecen montadas (display none/block)
+        para mantener vivas las suscripciones Realtime.
       */}
       <div style={{ display: tab === "pedidos"   ? "block" : "none" }}>{children}</div>
+      <div style={{ display: tab === "sinpes"    ? "block" : "none" }}><SinpesTab /></div>
       <div style={{ display: tab === "productos" ? "block" : "none" }}><ProductosTab /></div>
     </>
   );
