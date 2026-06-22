@@ -21,7 +21,7 @@ export default function CocinaTabsWrapper({ children }: { children: React.ReactN
     // rgba(0,0,0,0) en lugar de "transparent" para sobreescribir
     // el fondo nativo del botón que aplica el preflight de Tailwind v4
     background: active ? "rgba(249,115,22,0.1)" : "rgba(0,0,0,0)",
-    color: active ? "#f97316" : "rgba(255,255,255,0.45)",
+    color: active ? "#f97316" : "#6b7280",
     transition: "all 0.15s",
     lineHeight: 1.2,
   });

@@ -336,11 +336,11 @@ export default function ProductosTab() {
   const rowBase: React.CSSProperties = {
     display: "flex", alignItems: "center", gap: 10,
     padding: "9px 0", cursor: "pointer",
-    borderBottom: "1px solid rgba(255,255,255,0.06)",
+    borderBottom: "1px solid rgba(0,0,0,0.06)",
   };
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 20 }}>
+    <div style={{ background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 16, padding: 20 }}>
 
       {/* Modal */}
       {editTarget !== undefined && (
@@ -354,17 +354,17 @@ export default function ProductosTab() {
 
       {/* Buscador */}
       <div style={{ position: "relative", marginBottom: 16 }}>
-        <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.28)", pointerEvents: "none" }} />
+        <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", pointerEvents: "none" }} />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar producto..."
           style={{
             width: "100%", boxSizing: "border-box",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.09)",
+            background: "rgba(0,0,0,0.03)",
+            border: "1px solid rgba(0,0,0,0.1)",
             borderRadius: 10, padding: "8px 10px 8px 30px",
-            color: "rgba(255,255,255,0.8)", fontSize: 13, outline: "none",
+            color: "#374151", fontSize: 13, outline: "none",
           }}
         />
       </div>
@@ -385,7 +385,7 @@ export default function ProductosTab() {
                 ? <img src={pdmUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 : <Star size={15} style={{ color: "#f97316" }} />}
             </div>
-            <span style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>
+            <span style={{ flex: 1, fontSize: 12, color: "#111827", fontWeight: 500 }}>
               Producto del mes
             </span>
             <span style={{ fontSize: 11, color: "#f97316", opacity: 0.7 }}>banner</span>
@@ -404,7 +404,7 @@ export default function ProductosTab() {
                   />
                 )}
               </div>
-              <span style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{p.nombre}</span>
+              <span style={{ flex: 1, fontSize: 12, color: "#374151" }}>{p.nombre}</span>
               <span style={{ fontSize: 12, fontWeight: 500, color: "#f97316" }}>
                 ₡{Number(p.precio).toLocaleString("es-CR")}
               </span>
@@ -412,7 +412,7 @@ export default function ProductosTab() {
           ))}
 
           {filtrados.length === 0 && query && (
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "20px 0" }}>
+            <p style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: "20px 0" }}>
               Sin resultados para &ldquo;{query}&rdquo;
             </p>
           )}

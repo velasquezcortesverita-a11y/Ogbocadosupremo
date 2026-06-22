@@ -63,13 +63,13 @@ export default function SinpesTab() {
   const totalDia = sinpes.reduce((acc, p) => acc + Number(p.total), 0);
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 20 }}>
+    <div style={{ background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 16, padding: 20 }}>
       {loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
           <Loader2 size={20} className="animate-spin" style={{ color: "rgba(255,255,255,0.25)" }} />
         </div>
       ) : sinpes.length === 0 ? (
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "32px 0", margin: 0 }}>
+        <p style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", padding: "32px 0", margin: 0 }}>
           Aún no hay comprobantes confirmados hoy
         </p>
       ) : (
@@ -85,7 +85,7 @@ export default function SinpesTab() {
             justifyContent: "space-between",
             alignItems: "center",
           }}>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Total confirmado hoy</span>
+            <span style={{ fontSize: 12, color: "#6b7280" }}>Total confirmado hoy</span>
             <span style={{ fontSize: 15, fontWeight: 700, color: "#f97316" }}>
               ₡{totalDia.toLocaleString("es-CR")}
             </span>
@@ -98,7 +98,7 @@ export default function SinpesTab() {
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "9px 0",
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                borderBottom: "1px solid rgba(0,0,0,0.06)",
               }}
             >
               {/* Thumbnail con ✓ */}
@@ -127,10 +127,10 @@ export default function SinpesTab() {
 
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.85)", margin: 0 }}>
+                <p style={{ fontSize: 11, fontWeight: 500, color: "#111827", margin: 0 }}>
                   Pedido #{p.numero_pedido}
                 </p>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: 0, marginTop: 1 }}>
+                <p style={{ fontSize: 10, color: "#9ca3af", margin: 0, marginTop: 1 }}>
                   {p.nombre_cliente} · {horaCorta(p.created_at)}
                 </p>
               </div>
