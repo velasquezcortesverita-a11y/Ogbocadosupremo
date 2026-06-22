@@ -18,22 +18,28 @@ export default function CocinaTabsWrapper({ children }: { children: React.ReactN
     border: active
       ? "1px solid rgba(249,115,22,0.35)"
       : "0.5px solid rgba(255,255,255,0.14)",
-    background: active ? "rgba(249,115,22,0.1)" : "transparent",
+    // rgba(0,0,0,0) en lugar de "transparent" para sobreescribir
+    // el fondo nativo del botón que aplica el preflight de Tailwind v4
+    background: active ? "rgba(249,115,22,0.1)" : "rgba(0,0,0,0)",
     color: active ? "#f97316" : "rgba(255,255,255,0.45)",
     transition: "all 0.15s",
+    lineHeight: 1.2,
   });
+
+  // Clases base que eliminan el estilo nativo del navegador en <button>
+  const btnBase = "appearance-none outline-none";
 
   return (
     <>
       {/* Tab pills */}
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-        <button style={pill(tab === "pedidos")}   onClick={() => setTab("pedidos")}>
+        <button type="button" className={btnBase} style={pill(tab === "pedidos")}   onClick={() => setTab("pedidos")}>
           Pedidos
         </button>
-        <button style={pill(tab === "sinpes")}    onClick={() => setTab("sinpes")}>
+        <button type="button" className={btnBase} style={pill(tab === "sinpes")}    onClick={() => setTab("sinpes")}>
           Sinpes
         </button>
-        <button style={pill(tab === "productos")} onClick={() => setTab("productos")}>
+        <button type="button" className={btnBase} style={pill(tab === "productos")} onClick={() => setTab("productos")}>
           Productos
         </button>
       </div>
