@@ -29,29 +29,29 @@ type PedidoReporte = {
   pedido_items: { nombre_producto: string; cantidad: number }[];
 };
 
+type TotalesTR = { sinpe: number; efectivo: number; general: number; cantidad: number };
+
+// Estado del modal: null = cerrado, "cargando" = spinner, luego el caso correspondiente
+type ModalState =
+  | null
+  | { tipo: "cargando" }
+  | { tipo: "cierre";   cierre: CierreHistorial; pedidos: PedidoReporte[] }
+  | { tipo: "hoy";      totales: TotalesTR;       pedidos: PedidoReporte[] }
+  | { tipo: "vacio" };
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) => `₡${n.toLocaleString("es-CR")}`;
 
-// Devuelve { year, month, date, day } en hora CR (UTC-6) usando métodos UTC
-// sobre una fecha desplazada, para evitar dependencia del timezone del browser.
 function crPartes(iso: string) {
   const crMs = new Date(iso).getTime() - 6 * 60 * 60 * 1000;
   const d    = new Date(crMs);
-  return {
-    year:  d.getUTCFullYear(),
-    month: d.getUTCMonth(),
-    date:  d.getUTCDate(),
-    day:   d.getUTCDay(),
-  };
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth(), date: d.getUTCDate(), day: d.getUTCDay() };
 }
 
-function todayCRPartes() {
-  return crPartes(new Date().toISOString());
-}
+function todayCRPartes() { return crPartes(new Date().toISOString()); }
 
 function monthRangeUTC(year: number, month: number) {
-  // 00:00 CR = 06:00 UTC; Date.UTC maneja correctamente el overflow de meses
   const start = new Date(Date.UTC(year, month,     1, 6, 0, 0));
   const end   = new Date(Date.UTC(year, month + 1, 1, 6, 0, 0));
   return { start: start.toISOString(), end: end.toISOString() };
@@ -67,6 +67,11 @@ function buildCalendar(year: number, month: number): number[] {
   return days;
 }
 
+function buildDayLabel(year: number, month: number, day: number): string {
+  const d = new Date(Date.UTC(year, month, day));
+  return `${DIAS_NOMBRE[d.getUTCDay()]} ${day} de ${MESES[month].toLowerCase()} de ${year}`;
+}
+
 function formatTs(ts: string | null | undefined): string {
   if (!ts) return "—";
   return new Date(ts).toLocaleString("es-CR", {
@@ -76,19 +81,19 @@ function formatTs(ts: string | null | undefined): string {
   });
 }
 
-const MESES        = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-const DIAS_SEMANA  = ["D","L","M","M","J","V","S"];
-const DIAS_NOMBRE  = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+const MESES       = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DIAS_SEMANA = ["D","L","M","M","J","V","S"];
+const DIAS_NOMBRE = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 
-// ─── Modal de reporte histórico ────────────────────────────────────────────────
+// ─── Modal unificado (3 casos) ────────────────────────────────────────────────
 
-function ReporteHistorialModal({
-  cierre,
-  pedidos,
+function DetalleModal({
+  estado,
+  diaLabel,
   onClose,
 }: {
-  cierre: CierreHistorial;
-  pedidos: PedidoReporte[];
+  estado: Exclude<ModalState, null | { tipo: "cargando" }>;
+  diaLabel: string;
   onClose: () => void;
 }) {
   const printRef = useRef<HTMLDivElement>(null);
@@ -99,9 +104,41 @@ function ReporteHistorialModal({
     return () => window.removeEventListener("keydown", fn);
   }, [onClose]);
 
-  const ts = cierre.hora_cierre ?? cierre.created_at;
-  const p  = crPartes(ts);
-  const titulo = `${DIAS_NOMBRE[p.day]} ${p.date} de ${MESES[p.month].toLowerCase()} de ${p.year}`;
+  // ── Caso 2: día pasado sin datos ──────────────────────────────────────────
+  if (estado.tipo === "vacio") {
+    return (
+      <div
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      >
+        <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full" style={{ maxWidth: 360 }}>
+          <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Sin registro</h2>
+              <p className="text-xs text-gray-500 mt-0.5 capitalize">{diaLabel}</p>
+            </div>
+            <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 px-2 text-xl font-light">✕</button>
+          </div>
+          <div style={{ padding: "32px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 32 }}>📭</span>
+            <p style={{ fontSize: 14, fontWeight: 500, color: "#374151", margin: 0 }}>No hay datos disponibles</p>
+            <p style={{ fontSize: 12, color: "#9ca3af", margin: 0, maxWidth: 240 }}>
+              Este día no tiene un cierre registrado. El local puede haber estado cerrado o el cierre no se realizó.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Casos 1 y 3: datos con totales ───────────────────────────────────────
+
+  // Inline type checks para narrowing seguro con TypeScript
+  const sinpe    = estado.tipo === "cierre" ? estado.cierre.total_sinpe      : estado.totales.sinpe;
+  const efectivo = estado.tipo === "cierre" ? estado.cierre.total_efectivo   : estado.totales.efectivo;
+  const general  = estado.tipo === "cierre" ? estado.cierre.total_general    : estado.totales.general;
+  const cantidad = estado.tipo === "cierre" ? estado.cierre.cantidad_pedidos : estado.totales.cantidad;
+  const pedidos  = estado.pedidos;
 
   const imprimir = () => {
     const original = document.body.innerHTML;
@@ -124,45 +161,63 @@ function ReporteHistorialModal({
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Cierre del día</h2>
-            <p className="text-xs text-gray-500 mt-0.5 capitalize">{titulo}</p>
-            <p className="text-xs text-gray-300 mt-0.5">
-              {formatTs(cierre.hora_inicio)} → {formatTs(ts)}
-            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <h2 className="text-base font-bold text-gray-900">
+                {estado.tipo === "cierre" ? "Cierre del día" : "Hoy (en curso)"}
+              </h2>
+              {/* Badge — solo en Caso 1 (hoy sin cierre) */}
+              {estado.tipo === "hoy" && (
+                <span style={{
+                  background: "rgba(249,115,22,0.1)",
+                  border: "1px solid rgba(249,115,22,0.25)",
+                  color: "#f97316",
+                  borderRadius: 20,
+                  fontSize: 10,
+                  fontWeight: 500,
+                  padding: "2px 9px",
+                  whiteSpace: "nowrap",
+                }}>
+                  Cierre aún no realizado
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5 capitalize">{diaLabel}</p>
+            {estado.tipo === "cierre" && (
+              <p className="text-xs text-gray-300 mt-0.5">
+                {formatTs(estado.cierre.hora_inicio)} → {formatTs(estado.cierre.hora_cierre ?? estado.cierre.created_at)}
+              </p>
+            )}
           </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={imprimir}
-              className="flex items-center gap-1.5 bg-gray-900 text-white text-xs font-medium px-3 py-2 rounded-xl hover:bg-gray-700 transition-colors"
-            >
-              <Printer size={13} />
-              Imprimir
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 px-2 text-xl font-light"
-            >
-              ✕
-            </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {estado.tipo === "cierre" && (
+              <button
+                type="button"
+                onClick={imprimir}
+                className="flex items-center gap-1.5 bg-gray-900 text-white text-xs font-medium px-3 py-2 rounded-xl hover:bg-gray-700 transition-colors"
+              >
+                <Printer size={13} />
+                Imprimir
+              </button>
+            )}
+            <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 px-2 text-xl font-light">✕</button>
           </div>
         </div>
 
         {/* Contenido */}
         <div ref={printRef} className="overflow-y-auto p-5 flex flex-col gap-5">
-          {/* Totales */}
+
+          {/* Tarjetas de totales */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "SINPE Móvil", total: cierre.total_sinpe,   color: "text-blue-600",   bg: "bg-blue-50"   },
-              { label: "Efectivo",    total: cierre.total_efectivo, color: "text-green-600",  bg: "bg-green-50"  },
-              { label: "Total",       total: cierre.total_general,  color: "text-orange-600", bg: "bg-orange-50" },
+              { label: "SINPE Móvil", total: sinpe,    color: "text-blue-600",   bg: "bg-blue-50"   },
+              { label: "Efectivo",    total: efectivo,  color: "text-green-600",  bg: "bg-green-50"  },
+              { label: "Total",       total: general,   color: "text-orange-600", bg: "bg-orange-50" },
             ].map(({ label, total, color, bg }) => (
               <div key={label} className={`${bg} rounded-xl p-3`}>
                 <p className="text-xs text-gray-500 font-medium mb-1">{label}</p>
                 <p className={`text-lg font-bold ${color}`}>{fmt(total ?? 0)}</p>
                 {label === "Total" && (
-                  <p className="text-xs text-gray-400">{cierre.cantidad_pedidos} pedidos</p>
+                  <p className="text-xs text-gray-400">{cantidad} pedidos</p>
                 )}
               </div>
             ))}
@@ -196,7 +251,9 @@ function ReporteHistorialModal({
             </div>
           ) : (
             <p className="text-sm text-gray-400 text-center py-4">
-              No se encontraron pedidos en el historial para este cierre
+              {estado.tipo === "cierre"
+                ? "No se encontraron pedidos en el historial para este cierre"
+                : "No hay pedidos entregados todavía hoy"}
             </p>
           )}
         </div>
@@ -209,12 +266,22 @@ function ReporteHistorialModal({
 
 export default function HistorialTab() {
   const hoy = todayCRPartes();
-  const [mes,           setMes]           = useState({ year: hoy.year, month: hoy.month });
-  const [cierres,       setCierres]       = useState<CierreHistorial[]>([]);
-  const [loading,       setLoading]       = useState(true);
-  const [selectedCierre, setSelectedCierre] = useState<CierreHistorial | null>(null);
-  const [pedidosModal,  setPedidosModal]  = useState<PedidoReporte[]>([]);
-  const [loadingModal,  setLoadingModal]  = useState(false);
+  const [mes,       setMes]       = useState({ year: hoy.year, month: hoy.month });
+  const [cierres,   setCierres]   = useState<CierreHistorial[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [modal,     setModal]     = useState<ModalState>(null);
+  const [diaLabel,  setDiaLabel]  = useState("");
+  const [diaInicio, setDiaInicio] = useState<string | null>(null);
+
+  // Cargar dia_inicio para calcular datos en tiempo real del día actual (Caso 1)
+  useEffect(() => {
+    supabase
+      .from("configuracion")
+      .select("valor")
+      .eq("clave", "dia_inicio")
+      .maybeSingle()
+      .then(({ data }) => { if (data?.valor) setDiaInicio(data.valor as string); });
+  }, []);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -231,7 +298,7 @@ export default function HistorialTab() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  // Mapa día → cierre para el mes actual mostrado
+  // Mapa día → cierre para el mes mostrado
   const cierreByDay: Record<number, CierreHistorial> = {};
   for (const c of cierres) {
     const ts  = c.hora_cierre ?? c.created_at;
@@ -239,35 +306,59 @@ export default function HistorialTab() {
     cierreByDay[day] = c;
   }
 
-  const esHoy        = mes.year === hoy.year && mes.month === hoy.month;
-  const diaHoyNum    = esHoy ? hoy.date : -1;
-  const calendario   = buildCalendar(mes.year, mes.month);
+  const esHoy      = mes.year === hoy.year && mes.month === hoy.month;
+  const diaHoyNum  = esHoy ? hoy.date : -1;
+  const calendario = buildCalendar(mes.year, mes.month);
 
   const handleDayClick = async (day: number) => {
-    const cierre = cierreByDay[day];
-    if (!cierre) return;
+    const cierre  = cierreByDay[day];
+    const isToday = day === diaHoyNum;
+    setDiaLabel(buildDayLabel(mes.year, mes.month, day));
 
-    setLoadingModal(true);
-    setSelectedCierre(cierre);
+    // ── Caso 3: día con cierre registrado ──────────────────────────────────
+    if (cierre) {
+      setModal({ tipo: "cargando" });
+      let pedidos: PedidoReporte[] = [];
+      if (cierre.pedidos_ids && cierre.pedidos_ids.length > 0) {
+        const { data } = await supabase
+          .from("pedidos")
+          .select("id, numero_pedido, nombre_cliente, total, metodo_pago, created_at, pedido_items(nombre_producto, cantidad)")
+          .in("id", cierre.pedidos_ids)
+          .order("created_at", { ascending: true });
+        pedidos = (data ?? []) as PedidoReporte[];
+      }
+      setModal({ tipo: "cierre", cierre, pedidos });
+      return;
+    }
 
-    let pedidos: PedidoReporte[] = [];
-    if (cierre.pedidos_ids && cierre.pedidos_ids.length > 0) {
+    // ── Caso 1: hoy sin cierre — datos en tiempo real ──────────────────────
+    if (isToday) {
+      setModal({ tipo: "cargando" });
+      const inicio = diaInicio ?? new Date(Date.UTC(mes.year, mes.month, day, 6, 0, 0)).toISOString();
       const { data } = await supabase
         .from("pedidos")
         .select("id, numero_pedido, nombre_cliente, total, metodo_pago, created_at, pedido_items(nombre_producto, cantidad)")
-        .in("id", cierre.pedidos_ids)
+        .eq("estado", "entregado")
+        .gte("created_at", inicio)
         .order("created_at", { ascending: true });
-      pedidos = (data ?? []) as PedidoReporte[];
+      const pedidos  = (data ?? []) as PedidoReporte[];
+      const sinpe    = pedidos.filter((p) => p.metodo_pago === "sinpe").reduce((a, p) => a + Number(p.total), 0);
+      const efectivo = pedidos.filter((p) => p.metodo_pago === "efectivo").reduce((a, p) => a + Number(p.total), 0);
+      setModal({
+        tipo: "hoy",
+        totales: { sinpe, efectivo, general: sinpe + efectivo, cantidad: pedidos.length },
+        pedidos,
+      });
+      return;
     }
 
-    setPedidosModal(pedidos);
-    setLoadingModal(false);
+    // ── Caso 2: día pasado sin cierre ──────────────────────────────────────
+    setModal({ tipo: "vacio" });
   };
 
   const prevMes = () => setMes((p) =>
     p.month === 0 ? { year: p.year - 1, month: 11 } : { year: p.year, month: p.month - 1 }
   );
-
   const nextMes = () => setMes((p) =>
     p.month === 11 ? { year: p.year + 1, month: 0 } : { year: p.year, month: p.month + 1 }
   );
@@ -283,23 +374,23 @@ export default function HistorialTab() {
   return (
     <div style={{ background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 16, padding: 20 }}>
 
-      {/* Modal de reporte */}
-      {selectedCierre && !loadingModal && (
-        <ReporteHistorialModal
-          cierre={selectedCierre}
-          pedidos={pedidosModal}
-          onClose={() => { setSelectedCierre(null); setPedidosModal([]); }}
-        />
-      )}
-
-      {/* Overlay de carga del modal */}
-      {loadingModal && (
+      {/* Spinner mientras carga datos del día seleccionado */}
+      {modal?.tipo === "cargando" && (
         <div style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: 12, padding: "18px 24px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
             <Loader2 size={16} className="animate-spin" style={{ color: "#f97316" }} />
-            <span style={{ fontSize: 13, color: "#374151" }}>Cargando reporte...</span>
+            <span style={{ fontSize: 13, color: "#374151" }}>Cargando...</span>
           </div>
         </div>
+      )}
+
+      {/* Modal de detalle (Casos 1, 2, 3) */}
+      {modal && modal.tipo !== "cargando" && (
+        <DetalleModal
+          estado={modal}
+          diaLabel={diaLabel}
+          onClose={() => setModal(null)}
+        />
       )}
 
       {/* Header: mes + navegación */}
@@ -308,12 +399,8 @@ export default function HistorialTab() {
           {MESES[mes.month]} {mes.year}
         </span>
         <div style={{ display: "flex", gap: 4 }}>
-          <button type="button" style={btnNav} onClick={prevMes}>
-            <ChevronLeft size={14} />
-          </button>
-          <button type="button" style={btnNav} onClick={nextMes}>
-            <ChevronRight size={14} />
-          </button>
+          <button type="button" style={btnNav} onClick={prevMes}><ChevronLeft size={14} /></button>
+          <button type="button" style={btnNav} onClick={nextMes}><ChevronRight size={14} /></button>
         </div>
       </div>
 
@@ -344,8 +431,8 @@ export default function HistorialTab() {
             return (
               <div
                 key={idx}
-                onClick={() => cierre && handleDayClick(day)}
-                title={cierre ? `Ver cierre del día ${day}` : undefined}
+                onClick={() => handleDayClick(day)}
+                title={cierre ? `Ver cierre del día ${day}` : isToday ? "Ver datos de hoy" : undefined}
                 style={{
                   aspectRatio: "1",
                   borderRadius: 8,
@@ -354,7 +441,7 @@ export default function HistorialTab() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 3,
-                  cursor: cierre ? "pointer" : "default",
+                  cursor: "pointer",
                   border: isToday
                     ? "1.5px solid #f97316"
                     : cierre
@@ -362,20 +449,27 @@ export default function HistorialTab() {
                     : "1px solid transparent",
                   background: cierre
                     ? "rgba(34,197,94,0.08)"
+                    : isToday
+                    ? "rgba(249,115,22,0.05)"
                     : "rgba(0,0,0,0.02)",
                   transition: "background 0.1s",
                 }}
               >
                 <span style={{
                   fontSize: 12,
-                  fontWeight: cierre ? 500 : 400,
-                  color: cierre ? "#111827" : "#9ca3af",
+                  fontWeight: cierre || isToday ? 500 : 400,
+                  color: cierre ? "#111827" : isToday ? "#f97316" : "#9ca3af",
                   lineHeight: 1,
                 }}>
                   {day}
                 </span>
+                {/* Punto verde: cierre registrado */}
                 {cierre && (
                   <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#22c55e", display: "block" }} />
+                )}
+                {/* Punto naranja: hoy sin cierre aún */}
+                {isToday && !cierre && (
+                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#f97316", display: "block" }} />
                 )}
               </div>
             );
@@ -388,6 +482,10 @@ export default function HistorialTab() {
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", flexShrink: 0 }} />
           <span style={{ fontSize: 10, color: "#6b7280" }}>Día cerrado</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f97316", display: "inline-block", flexShrink: 0 }} />
+          <span style={{ fontSize: 10, color: "#6b7280" }}>Hoy</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#d1d5db", display: "inline-block", flexShrink: 0 }} />
