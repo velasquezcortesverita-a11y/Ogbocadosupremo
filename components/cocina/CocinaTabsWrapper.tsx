@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import ProductosTab from "@/components/cocina/ProductosTab";
-import SinpesTab    from "@/components/cocina/SinpesTab";
+import ProductosTab  from "@/components/cocina/ProductosTab";
+import SinpesTab     from "@/components/cocina/SinpesTab";
+import HistorialTab  from "@/components/cocina/HistorialTab";
 
-type Tab = "pedidos" | "sinpes" | "productos";
+type Tab = "pedidos" | "sinpes" | "historial" | "productos";
 
 export default function CocinaTabsWrapper({ children }: { children: React.ReactNode }) {
   const [tab, setTab] = useState<Tab>("pedidos");
@@ -39,6 +40,9 @@ export default function CocinaTabsWrapper({ children }: { children: React.ReactN
         <button type="button" className={btnBase} style={pill(tab === "sinpes")}    onClick={() => setTab("sinpes")}>
           Sinpes
         </button>
+        <button type="button" className={btnBase} style={pill(tab === "historial")} onClick={() => setTab("historial")}>
+          Historial
+        </button>
         <button type="button" className={btnBase} style={pill(tab === "productos")} onClick={() => setTab("productos")}>
           Productos
         </button>
@@ -50,6 +54,7 @@ export default function CocinaTabsWrapper({ children }: { children: React.ReactN
       */}
       <div style={{ display: tab === "pedidos"   ? "block" : "none" }}>{children}</div>
       <div style={{ display: tab === "sinpes"    ? "block" : "none" }}><SinpesTab /></div>
+      <div style={{ display: tab === "historial" ? "block" : "none" }}><HistorialTab /></div>
       <div style={{ display: tab === "productos" ? "block" : "none" }}><ProductosTab /></div>
     </>
   );
