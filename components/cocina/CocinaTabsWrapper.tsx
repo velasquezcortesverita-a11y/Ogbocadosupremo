@@ -41,7 +41,7 @@ export default function CocinaTabsWrapper({ children }: { children: React.ReactN
           Sinpes
         </button>
         <button type="button" className={btnBase} style={pill(tab === "historial")} onClick={() => setTab("historial")}>
-          Historial
+          Historial de ventas
         </button>
         <button type="button" className={btnBase} style={pill(tab === "productos")} onClick={() => setTab("productos")}>
           Productos
