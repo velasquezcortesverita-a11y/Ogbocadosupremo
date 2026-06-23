@@ -9,6 +9,7 @@ import {
   Flame, ShoppingBag,
 } from "lucide-react";
 import HorarioBadge from "@/components/HorarioBadge";
+import HorarioCerradoModal from "@/components/HorarioCerradoModal";
 import { useCartStore } from "@/store/carstore";
 import { supabase } from "@/lib/supabase";
 
@@ -109,6 +110,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#141414]">
+
+      {/* Modal de horario — solo aparece cuando el local está cerrado */}
+      <HorarioCerradoModal />
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="relative flex flex-col items-center justify-center text-center min-h-[calc(100vh-4rem)] px-4 py-20 overflow-hidden">
