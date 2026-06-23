@@ -81,6 +81,14 @@ function formatTs(ts: string | null | undefined): string {
   });
 }
 
+function formatHora(ts: string | null | undefined): string {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleString("es-CR", {
+    timeZone: "America/Costa_Rica",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
 const MESES       = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_SEMANA = ["D","L","M","M","J","V","S"];
 const DIAS_NOMBRE = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
@@ -184,7 +192,7 @@ function DetalleModal({
             <p className="text-xs text-gray-500 mt-0.5 capitalize">{diaLabel}</p>
             {estado.tipo === "cierre" && (
               <p className="text-xs text-gray-300 mt-0.5">
-                {formatTs(estado.cierre.hora_inicio)} → {formatTs(estado.cierre.hora_cierre ?? estado.cierre.created_at)}
+                {formatHora(estado.cierre.hora_inicio)} → {formatHora(estado.cierre.hora_cierre ?? estado.cierre.created_at)}
               </p>
             )}
           </div>
