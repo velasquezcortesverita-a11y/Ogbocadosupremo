@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useCartStore } from "@/store/carstore";
+import { useCartStore, type Extra } from "@/store/carstore";
 import { useDeliveryStore } from "@/store/deliveryStore";
+import ExtrasModal from "@/components/ExtrasModal";
 import {
   Minus,
   Plus,
@@ -21,12 +22,15 @@ import {
 const SINPE_NUMBER = "XXXX-XXXX"; // Ej. 8888-8888
 
 export default function CarritoPage() {
-  const items = useCartStore((state) => state.items);
-  const total = useCartStore((state) => state.total);
-  const limpiarCarrito = useCartStore((state) => state.limpiarCarrito);
-  const aumentarCantidad = useCartStore((state) => state.aumentarCantidad);
+  const items           = useCartStore((state) => state.items);
+  const total           = useCartStore((state) => state.total);
+  const limpiarCarrito  = useCartStore((state) => state.limpiarCarrito);
+  const aumentarCantidad  = useCartStore((state) => state.aumentarCantidad);
   const disminuirCantidad = useCartStore((state) => state.disminuirCantidad);
-  const eliminarProducto = useCartStore((state) => state.eliminarProducto);
+  const eliminarProducto  = useCartStore((state) => state.eliminarProducto);
+  const setExtras         = useCartStore((state) => state.setExtras);
+
+  const [extrasModal, setExtrasModal] = useState<{ id: string; nombre: string; extras: Extra[] } | null>(null);
 
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -95,11 +99,12 @@ export default function CarritoPage() {
     }
 
     const detalles = items.map((item) => ({
-      pedido_id: pedido.id,
-      producto_id: item.id,
+      pedido_id:      pedido.id,
+      producto_id:    item.id,
       nombre_producto: item.nombre,
-      cantidad: item.cantidad,
-      precio: item.precio,
+      cantidad:       item.cantidad,
+      precio:         item.precio,
+      extras:         item.extras ?? [],
     }));
 
     const { error: detalleError } = await supabase
@@ -200,6 +205,16 @@ export default function CarritoPage() {
 
   return (
     <>
+      {/* Modal de extras */}
+      {extrasModal && (
+        <ExtrasModal
+          itemNombre={extrasModal.nombre}
+          currentExtras={extrasModal.extras}
+          onSave={(extras) => setExtras(extrasModal.id, extras)}
+          onClose={() => setExtrasModal(null)}
+        />
+      )}
+
       {/* ── Confirmación SINPE ──────────────────────────────────────────── */}
       {pedidoSinpe && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -406,60 +421,115 @@ export default function CarritoPage() {
                   {items.length} {items.length === 1 ? "producto" : "productos"}
                 </p>
 
-                {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-4 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 text-base truncate">
-                        {item.nombre}
-                      </p>
-                      <p className="text-gray-400 text-sm mt-0.5">
-                        ₡{item.precio} c/u
-                      </p>
+                {items.map((item) => {
+                  const itemExtras  = item.extras ?? [];
+                  const extrasSum   = itemExtras.reduce((s, e) => s + e.precio, 0);
+                  const precioTotal = item.precio + extrasSum;
 
-                      <div className="flex items-center gap-3 mt-3">
-                        <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full">
-                          <button
-                            type="button"
-                            onClick={() => disminuirCantidad(item.id)}
-                            className="flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span className="w-8 text-center font-bold text-sm text-gray-800">
-                            {item.cantidad}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => aumentarCantidad(item.id)}
-                            className="flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
-                          >
-                            <Plus size={14} />
-                          </button>
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-base truncate">
+                            {item.nombre}
+                          </p>
+                          <p className="text-gray-400 text-sm mt-0.5">
+                            ₡{precioTotal.toLocaleString("es-CR")} c/u
+                            {extrasSum > 0 && (
+                              <span className="text-orange-400 text-xs ml-1">
+                                (base ₡{item.precio.toLocaleString("es-CR")} + extras)
+                              </span>
+                            )}
+                          </p>
+
+                          <div className="flex items-center gap-3 mt-3">
+                            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full">
+                              <button
+                                type="button"
+                                onClick={() => disminuirCantidad(item.id)}
+                                className="flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <span className="w-8 text-center font-bold text-sm text-gray-800">
+                                {item.cantidad}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => aumentarCantidad(item.id)}
+                                className="flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => eliminarProducto(item.id)}
+                              className="flex items-center justify-center w-8 h-8 rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => eliminarProducto(item.id)}
-                          className="flex items-center justify-center w-8 h-8 rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        <div className="text-right shrink-0">
+                          <p className="text-[11px] text-gray-400 uppercase tracking-wide font-medium mb-0.5">
+                            Subtotal
+                          </p>
+                          <p className="font-bold text-gray-900 text-lg">
+                            ₡{(precioTotal * item.cantidad).toLocaleString("es-CR")}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="text-right shrink-0">
-                      <p className="text-[11px] text-gray-400 uppercase tracking-wide font-medium mb-0.5">
-                        Subtotal
-                      </p>
-                      <p className="font-bold text-gray-900 text-lg">
-                        ₡{item.precio * item.cantidad}
-                      </p>
+                      {/* Tags de extras seleccionados */}
+                      {itemExtras.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 10 }}>
+                          {itemExtras.map((extra) => (
+                            <span
+                              key={extra.nombre}
+                              style={{
+                                background: "#f9fafb",
+                                border: "1px solid #e5e7eb",
+                                borderRadius: 10,
+                                padding: "3px 8px",
+                                fontSize: 9,
+                                color: "#6b7280",
+                              }}
+                            >
+                              {extra.nombre} ₡{extra.precio.toLocaleString("es-CR")}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Botón Agregar / Editar extras */}
+                      <button
+                        type="button"
+                        onClick={() => setExtrasModal({ id: item.id, nombre: item.nombre, extras: itemExtras })}
+                        style={{
+                          width: "100%",
+                          marginTop: 10,
+                          background: "rgba(249,115,22,0.08)",
+                          border: "1px dashed rgba(249,115,22,0.3)",
+                          borderRadius: 8,
+                          color: "#f97316",
+                          fontSize: 11,
+                          fontWeight: 500,
+                          padding: "8px",
+                          cursor: "pointer",
+                          textAlign: "center",
+                        }}
+                      >
+                        🧀 {itemExtras.length > 0 ? "Editar extras" : "Agregar extras"}
+                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Total line */}
                 <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex justify-between items-center mt-2">

@@ -352,11 +352,25 @@ export default function PedidoCard({
             <Package size={14} className="text-gray-400" />
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Productos</span>
           </div>
-          <ul className="space-y-1">
+          <ul className="space-y-2">
             {pedido.pedido_items?.map((item: PedidoItem) => (
-              <li key={item.id} className="flex justify-between text-sm text-gray-700">
-                <span>{item.nombre_producto}</span>
-                <span className="font-semibold text-gray-900">x{item.cantidad}</span>
+              <li key={item.id}>
+                <div className="flex justify-between text-sm text-gray-700">
+                  <span>{item.nombre_producto}</span>
+                  <span className="font-semibold text-gray-900">x{item.cantidad}</span>
+                </div>
+                {item.extras && item.extras.length > 0 && (
+                  <ul className="mt-0.5">
+                    {item.extras.map((extra) => (
+                      <li
+                        key={extra.nombre}
+                        style={{ paddingLeft: 14, color: "#f97316", fontSize: 10, lineHeight: 1.6 }}
+                      >
+                        + {extra.nombre}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
