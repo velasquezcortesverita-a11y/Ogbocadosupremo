@@ -208,6 +208,7 @@ export default function CarritoPage() {
       {/* Modal de extras */}
       {extrasModal && (
         <ExtrasModal
+          productoId={extrasModal.id}
           itemNombre={extrasModal.nombre}
           currentExtras={extrasModal.extras}
           onSave={(extras) => setExtras(extrasModal.id, extras)}

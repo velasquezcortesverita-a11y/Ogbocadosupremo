@@ -8,13 +8,14 @@ import { Loader2 } from "lucide-react";
 type ExtraDB = { id: string; nombre: string; precio: number };
 
 type Props = {
+  productoId:    string;
   itemNombre:    string;
   currentExtras: Extra[];
   onSave:        (extras: Extra[]) => void;
   onClose:       () => void;
 };
 
-export default function ExtrasModal({ itemNombre, currentExtras, onSave, onClose }: Props) {
+export default function ExtrasModal({ productoId, itemNombre, currentExtras, onSave, onClose }: Props) {
   const [disponibles, setDisponibles] = useState<ExtraDB[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [selected,    setSelected]    = useState<Set<string>>(
@@ -29,29 +30,43 @@ export default function ExtrasModal({ itemNombre, currentExtras, onSave, onClose
 
   useEffect(() => {
     (async () => {
-      // Buscar la categoría "Extras" (case-insensitive, partial match)
+      // 1. Obtener extras_permitidos del platillo (null = todos permitidos)
+      const { data: prod } = await supabase
+        .from("productos")
+        .select("extras_permitidos")
+        .eq("id", productoId)
+        .maybeSingle();
+
+      const permitidos = prod?.extras_permitidos as string[] | null | undefined;
+
+      // 2. Obtener categoría de extras
       const { data: cats } = await supabase
         .from("categorias")
         .select("id")
         .ilike("nombre", "%extra%");
 
-      if (!cats || cats.length === 0) {
-        setLoading(false);
-        return;
-      }
+      if (!cats || cats.length === 0) { setLoading(false); return; }
 
       const catIds = cats.map((c: { id: string }) => c.id);
 
+      // 3. Obtener todos los extras
       const { data } = await supabase
         .from("productos")
         .select("id, nombre, precio")
         .in("categoria_id", catIds)
         .order("nombre");
 
-      setDisponibles((data ?? []) as ExtraDB[]);
+      const todos = (data ?? []) as ExtraDB[];
+
+      // 4. Filtrar según extras_permitidos (null = todos)
+      const filtrados = (permitidos == null)
+        ? todos
+        : todos.filter((e) => permitidos.includes(e.id));
+
+      setDisponibles(filtrados);
       setLoading(false);
     })();
-  }, []);
+  }, [productoId]);
 
   const toggle = (nombre: string) => {
     setSelected((prev) => {
@@ -115,7 +130,7 @@ export default function ExtrasModal({ itemNombre, currentExtras, onSave, onClose
             </div>
           ) : disponibles.length === 0 ? (
             <p style={{ textAlign: "center", color: "#9ca3af", fontSize: 12, padding: "24px 16px" }}>
-              No hay extras disponibles
+              No hay extras disponibles para este platillo
             </p>
           ) : (
             disponibles.map((extra) => {
@@ -138,7 +153,6 @@ export default function ExtrasModal({ itemNombre, currentExtras, onSave, onClose
                     <span style={{ fontSize: 10, color: "#f97316", fontWeight: 500 }}>
                       +₡{extra.precio.toLocaleString("es-CR")}
                     </span>
-                    {/* Checkbox */}
                     <div style={{
                       width: 18, height: 18,
                       borderRadius: 5,
