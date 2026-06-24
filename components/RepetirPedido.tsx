@@ -127,16 +127,36 @@ export default function RepetirPedido() {
     });
 
   return (
-    <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
-      <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", margin: "0 0 10px" }}>
-        🔁 ¿Ya pediste antes?
-      </p>
+    <div style={{
+      background: "linear-gradient(135deg, rgba(249,115,22,0.14), rgba(249,115,22,0.05))",
+      borderRadius: 20,
+      padding: "18px 22px",
+      boxShadow: "0 4px 16px rgba(249,115,22,0.08)",
+      marginBottom: 20,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <span style={{
+          background: "rgba(249,115,22,0.18)",
+          color: "#f97316",
+          fontSize: 9,
+          fontWeight: 600,
+          padding: "3px 10px",
+          borderRadius: 20,
+          textTransform: "uppercase",
+          letterSpacing: "0.5px",
+        }}>
+          RÁPIDO
+        </span>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>
+          ¿Ya pediste antes?
+        </p>
+      </div>
 
       <div style={{ display: "flex", gap: 8 }}>
         <input
           type="tel"
           inputMode="numeric"
-          placeholder="Número de teléfono (8 dígitos)"
+          placeholder="Ingresá tu número telefónico"
           maxLength={8}
           value={telefono}
           onChange={(e) => {
@@ -147,9 +167,13 @@ export default function RepetirPedido() {
           }}
           style={{
             flex: 1,
-            border: "1px solid #d1d5db", borderRadius: 8,
-            padding: "8px 12px", fontSize: 13,
-            outline: "none", background: "#fff", color: "#374151",
+            border: "none",
+            borderRadius: 24,
+            padding: "11px 16px",
+            fontSize: 12,
+            outline: "none",
+            background: "rgba(255,255,255,0.85)",
+            color: "var(--color-text-primary)",
           }}
         />
         <button
@@ -157,11 +181,15 @@ export default function RepetirPedido() {
           onClick={buscar}
           disabled={telefono.length !== 8 || buscando}
           style={{
-            background: telefono.length === 8 ? "#111827" : "#e5e7eb",
-            color: telefono.length === 8 ? "#fff" : "#9ca3af",
-            border: "none", borderRadius: 8,
-            padding: "8px 14px", fontSize: 12, fontWeight: 500,
-            cursor: telefono.length === 8 ? "pointer" : "default",
+            background: "#f97316",
+            color: "#fff",
+            border: "none",
+            borderRadius: 24,
+            padding: "11px 22px",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: telefono.length === 8 && !buscando ? "pointer" : "default",
+            opacity: telefono.length !== 8 || buscando ? 0.6 : 1,
             whiteSpace: "nowrap",
           }}
         >
