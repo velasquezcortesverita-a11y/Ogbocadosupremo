@@ -132,10 +132,14 @@ function SinpeModal({
 
 export default function PedidoCard({
   pedido,
+  isNuevo = false,
   onEntregado,
+  onVerNuevo,
 }: {
   pedido: Pedido;
+  isNuevo?: boolean;
   onEntregado?: () => void;
+  onVerNuevo?: () => void;
 }) {
   const [estadoLocal, setEstadoLocal] = useState<string>(pedido.estado ?? "pendiente");
   const [saliendo,    setSaliendo]    = useState(false);
@@ -250,18 +254,38 @@ export default function PedidoCard({
           saliendo ? "opacity-0 scale-95" : "opacity-100 scale-100"
         }`}
         style={{
-          border: esPendiente
+          border: isNuevo
+            ? "1.5px solid #22c55e"
+            : esPendiente
             ? "1.5px solid rgba(249,115,22,0.5)"
             : esPreparando
             ? "1.5px solid rgba(59,130,246,0.5)"
             : "1px solid #f3f4f6",
+          background: isNuevo ? "rgba(34,197,94,0.04)" : "#fff",
           overflow: "hidden",
           isolation: "isolate",
           position: "relative",
         }}
       >
+        {/* Badge NUEVO */}
+        {isNuevo && (
+          <div style={{ position: "absolute", top: 10, left: 10, zIndex: 10 }}>
+            <span style={{
+              background: "#22c55e",
+              color: "#fff",
+              borderRadius: 10,
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              padding: "2px 7px",
+            }}>
+              NUEVO
+            </span>
+          </div>
+        )}
+
         {/* Header */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3" style={isNuevo ? { paddingTop: 14 } : {}}>
           {esPreparando ? (
             <div>
               <div className="flex items-center gap-1.5 mb-1">
@@ -409,7 +433,7 @@ export default function PedidoCard({
 
             {/* Botón Ver Sinpe */}
             <button
-              onClick={() => setSinpeModal(true)}
+              onClick={() => { onVerNuevo?.(); setSinpeModal(true); }}
               style={{
                 background: "#f97316",
                 border: "none",
@@ -437,14 +461,14 @@ export default function PedidoCard({
         <div className="flex flex-col gap-2 pt-1">
           {esPendiente && (
             <button
-              onClick={() => cambiarEstado("preparando")}
+              onClick={() => { onVerNuevo?.(); cambiarEstado("preparando"); }}
               className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold bg-blue-500 hover:bg-blue-600 active:scale-95 text-white transition-all"
             >
               Empezar a preparar
             </button>
           )}
           <button
-            onClick={() => cambiarEstado("entregado")}
+            onClick={() => { onVerNuevo?.(); cambiarEstado("entregado"); }}
             className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold bg-gray-800 hover:bg-gray-900 active:scale-95 text-white transition-all"
           >
             Entregado

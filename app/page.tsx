@@ -95,7 +95,8 @@ const PRODUCTO_DEL_MES = {
 
 export default function Home() {
   const agregarProducto = useCartStore((s) => s.agregarProducto);
-  const [imagenPDM, setImagenPDM] = useState<string>("");
+  const [imagenPDM,     setImagenPDM]     = useState<string>("");
+  const [pdmDisponible, setPdmDisponible] = useState<boolean>(true);
 
   useEffect(() => {
     supabase
@@ -105,6 +106,16 @@ export default function Home() {
       .maybeSingle()
       .then(({ data }) => {
         if (data?.valor) setImagenPDM(data.valor);
+      });
+
+    // Verificar si el PDM está marcado como agotado
+    supabase
+      .from("productos")
+      .select("disponible")
+      .eq("id", PRODUCTO_DEL_MES.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data !== null) setPdmDisponible(data.disponible ?? true);
       });
   }, []);
 
@@ -311,7 +322,7 @@ export default function Home() {
                 style={{
                   fontSize: "22px",
                   fontWeight: 500,
-                  color: "white",
+                  color: pdmDisponible ? "white" : "rgba(255,255,255,0.35)",
                   margin: 0,
                   lineHeight: 1.3,
                 }}
@@ -334,34 +345,45 @@ export default function Home() {
               {/* Precio + botón */}
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <span
-                  style={{ fontSize: "20px", color: "#f97316", fontWeight: 600 }}
+                  style={{ fontSize: "20px", color: pdmDisponible ? "#f97316" : "rgba(255,255,255,0.3)", fontWeight: 600 }}
                 >
                   ₡{PRODUCTO_DEL_MES.precio.toLocaleString("es-CR")}
                 </span>
-                <button
-                  onClick={() =>
-                    agregarProducto({
-                      id:     PRODUCTO_DEL_MES.id,
-                      nombre: PRODUCTO_DEL_MES.nombre,
-                      precio: PRODUCTO_DEL_MES.precio,
-                    })
-                  }
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    background: "#f97316",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "8px 14px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  + Agregar
-                </button>
+                {pdmDisponible ? (
+                  <button
+                    onClick={() =>
+                      agregarProducto({
+                        id:     PRODUCTO_DEL_MES.id,
+                        nombre: PRODUCTO_DEL_MES.nombre,
+                        precio: PRODUCTO_DEL_MES.precio,
+                      })
+                    }
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      background: "#f97316",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 14px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    + Agregar
+                  </button>
+                ) : (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center",
+                    background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)",
+                    border: "none", borderRadius: "8px", padding: "8px 14px",
+                    fontSize: "13px", fontWeight: 500, cursor: "not-allowed",
+                  }}>
+                    No disponible
+                  </span>
+                )}
               </div>
             </div>
 
@@ -377,17 +399,30 @@ export default function Home() {
                 flexShrink: 0,
               }}
             >
-              {imagenPDM ? (
-                <Image
-                  src={imagenPDM}
-                  alt={PRODUCTO_DEL_MES.nombre}
-                  width={100}
-                  height={100}
-                  className="object-contain"
-                />
-              ) : (
-                <span style={{ fontSize: "64px", lineHeight: 1 }}>🍔</span>
-              )}
+              <div style={{ position: "relative", display: "inline-block" }}>
+                {imagenPDM ? (
+                  <Image
+                    src={imagenPDM}
+                    alt={PRODUCTO_DEL_MES.nombre}
+                    width={100}
+                    height={100}
+                    className="object-contain"
+                    style={{ filter: pdmDisponible ? "none" : "grayscale(1)", opacity: pdmDisponible ? 1 : 0.4 }}
+                  />
+                ) : (
+                  <span style={{ fontSize: "64px", lineHeight: 1, opacity: pdmDisponible ? 1 : 0.35 }}>🍔</span>
+                )}
+                {!pdmDisponible && (
+                  <span style={{
+                    position: "absolute", bottom: 4, left: "50%", transform: "translateX(-50%)",
+                    background: "rgba(0,0,0,0.7)", color: "#fff",
+                    borderRadius: 4, fontSize: 9, fontWeight: 600,
+                    padding: "2px 6px", whiteSpace: "nowrap",
+                  }}>
+                    Agotado
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

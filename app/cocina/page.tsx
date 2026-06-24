@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import CocinaTabsWrapper from "@/components/cocina/CocinaTabsWrapper";
 import CocinaListado from "@/components/cocina/CocinaListado";
 import ResumenVentas from "@/components/cocina/ResumenVentas";
+import CocinaNotifButton from "@/components/cocina/CocinaNotifButton";
 import { Utensils } from "lucide-react";
 import type { Pedido } from "@/types/pedido";
 
@@ -35,6 +36,9 @@ export default async function CocinaPage() {
             <Utensils size={20} className="text-white" />
           </div>
           <h1 className="text-2xl font-extrabold text-gray-900">Panel de Cocina</h1>
+          <div className="ml-auto">
+            <CocinaNotifButton />
+          </div>
         </div>
 
         {/* Tabs wrapper: Pedidos | Productos */}

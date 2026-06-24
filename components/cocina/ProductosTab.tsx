@@ -12,6 +12,7 @@ type Producto = {
   precio: number;
   imagen_url: string | null;
   extras_permitidos?: string[] | null;
+  disponible?: boolean;
 };
 
 type Extra = { id: string; nombre: string; precio: number };
@@ -504,7 +505,7 @@ export default function ProductosTab() {
     setLoading(true);
     const extrasCatId = await getExtrasCatId();
     const [{ data: prods }, { data: pdm }] = await Promise.all([
-      supabase.from("productos").select("id, nombre, precio, imagen_url, extras_permitidos, categoria_id").order("nombre"),
+      supabase.from("productos").select("id, nombre, precio, imagen_url, extras_permitidos, disponible, categoria_id").order("nombre"),
       supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_imagen").maybeSingle(),
     ]);
 
@@ -534,6 +535,18 @@ export default function ProductosTab() {
             : p
         )
       );
+    }
+  };
+
+  const toggleDisponible = async (p: Producto, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = !(p.disponible ?? true);
+    // Actualización optimista
+    setProductos((prev) => prev.map((prod) => prod.id === p.id ? { ...prod, disponible: next } : prod));
+    const { error } = await supabase.from("productos").update({ disponible: next }).eq("id", p.id);
+    if (error) {
+      // Revertir si falla
+      setProductos((prev) => prev.map((prod) => prod.id === p.id ? { ...prod, disponible: !next } : prod));
     }
   };
 
@@ -595,15 +608,27 @@ export default function ProductosTab() {
                 <span style={{ fontSize: 11, color: "#f97316", opacity: 0.7 }}>banner</span>
               </div>
 
-              {filtrados.map((p) => (
-                <div key={p.id} style={rowBase} onClick={() => setEditTarget(p)}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", background: "rgba(249,115,22,0.07)", flexShrink: 0 }}>
-                    {p.imagen_url && <img src={p.imagen_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+              {filtrados.map((p) => {
+                const disponible = p.disponible ?? true;
+                return (
+                  <div key={p.id} style={rowBase} onClick={() => setEditTarget(p)}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", background: "rgba(249,115,22,0.07)", flexShrink: 0 }}>
+                      {p.imagen_url && <img src={p.imagen_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: disponible ? "none" : "grayscale(1)", opacity: disponible ? 1 : 0.5 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+                    </div>
+                    <span style={{ flex: 1, fontSize: 12, color: disponible ? "#374151" : "#9ca3af" }}>{p.nombre}</span>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: "#f97316", opacity: disponible ? 1 : 0.4 }}>₡{Number(p.precio).toLocaleString("es-CR")}</span>
+                    {/* Toggle disponible */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }} onClick={(e) => toggleDisponible(p, e)}>
+                      <span style={{ fontSize: 9, fontWeight: 500, color: disponible ? "#22c55e" : "#ef4444" }}>
+                        {disponible ? "Disponible" : "Agotado"}
+                      </span>
+                      <div style={{ width: 32, height: 18, borderRadius: 10, background: disponible ? "#22c55e" : "#d1d5db", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
+                        <div style={{ position: "absolute", top: 2, left: disponible ? 14 : 2, width: 14, height: 14, borderRadius: "50%", background: "white", transition: "left 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                      </div>
+                    </div>
                   </div>
-                  <span style={{ flex: 1, fontSize: 12, color: "#374151" }}>{p.nombre}</span>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: "#f97316" }}>₡{Number(p.precio).toLocaleString("es-CR")}</span>
-                </div>
-              ))}
+                );
+              })}
 
               {filtrados.length === 0 && query && (
                 <p style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: "20px 0" }}>

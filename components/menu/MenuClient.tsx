@@ -38,10 +38,12 @@ function ExtraChip({ producto }: { producto: Producto }) {
   const agregarProducto  = useCartStore((s) => s.agregarProducto);
   const eliminarProducto = useCartStore((s) => s.eliminarProducto);
   const enCarrito        = useCartStore((s) => s.items.some((i) => i.id === producto.id));
+  const disponible       = producto.disponible ?? true;
 
   return (
     <button
       onClick={() => {
+        if (!disponible) return;
         if (enCarrito) {
           eliminarProducto(producto.id);
         } else {
@@ -52,32 +54,34 @@ function ExtraChip({ producto }: { producto: Producto }) {
           });
         }
       }}
-      className={`inline-flex items-center gap-2 rounded-full border transition-all duration-150 cursor-pointer ${
-        enCarrito
-          ? "border-orange-500 bg-orange-50"
-          : "border-gray-200 bg-transparent hover:border-orange-400/50"
+      className={`inline-flex items-center gap-2 rounded-full border transition-all duration-150 ${
+        !disponible
+          ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
+          : enCarrito
+          ? "border-orange-500 bg-orange-50 cursor-pointer"
+          : "border-gray-200 bg-transparent hover:border-orange-400/50 cursor-pointer"
       }`}
       style={{ padding: "7px 12px" }}
     >
       <span
         className={`text-[13px] leading-none ${
-          enCarrito ? "text-orange-600 font-medium" : "text-gray-700"
+          !disponible ? "text-gray-400 line-through" : enCarrito ? "text-orange-600 font-medium" : "text-gray-700"
         }`}
       >
         {producto.nombre}
       </span>
       <span
         style={{
-          background:   "rgba(249,115,22,0.12)",
+          background:   disponible ? "rgba(249,115,22,0.12)" : "rgba(0,0,0,0.06)",
           borderRadius: "10px",
           padding:      "2px 7px",
           fontSize:     "11px",
-          color:        "#f97316",
+          color:        disponible ? "#f97316" : "#9ca3af",
           fontWeight:   500,
           lineHeight:   1.4,
         }}
       >
-        ₡{Number(producto.precio).toLocaleString("es-CR")}
+        {disponible ? `₡${Number(producto.precio).toLocaleString("es-CR")}` : "Agotado"}
       </span>
     </button>
   );
@@ -102,47 +106,51 @@ function BebidaChip({ producto, emoji }: { producto: Producto; emoji: string }) 
   const agregarProducto  = useCartStore((s) => s.agregarProducto);
   const eliminarProducto = useCartStore((s) => s.eliminarProducto);
   const enCarrito        = useCartStore((s) => s.items.some((i) => i.id === producto.id));
+  const disponible       = producto.disponible ?? true;
 
   return (
     <button
       onClick={() => {
+        if (!disponible) return;
         if (enCarrito) {
           eliminarProducto(producto.id);
         } else {
           agregarProducto({ id: producto.id, nombre: producto.nombre, precio: Number(producto.precio) });
         }
       }}
-      className={`inline-flex items-center rounded-full border transition-all duration-150 cursor-pointer ${
-        enCarrito
-          ? "border-orange-500"
-          : "border-gray-200 hover:border-orange-400/40"
+      className={`inline-flex items-center rounded-full border transition-all duration-150 ${
+        !disponible
+          ? "border-gray-200 opacity-50 cursor-not-allowed"
+          : enCarrito
+          ? "border-orange-500 cursor-pointer"
+          : "border-gray-200 hover:border-orange-400/40 cursor-pointer"
       }`}
       style={{
         gap:        "10px",
         padding:    "8px 14px",
-        background: enCarrito ? "rgba(249,115,22,0.08)" : "transparent",
+        background: !disponible ? "#f9fafb" : enCarrito ? "rgba(249,115,22,0.08)" : "transparent",
       }}
     >
-      <span style={{ fontSize: 15, lineHeight: 1 }}>{emoji}</span>
+      <span style={{ fontSize: 15, lineHeight: 1, opacity: disponible ? 1 : 0.4 }}>{emoji}</span>
       <span
         className={`text-xs leading-none ${
-          enCarrito ? "text-orange-600 font-medium" : "text-gray-700"
+          !disponible ? "text-gray-400 line-through" : enCarrito ? "text-orange-600 font-medium" : "text-gray-700"
         }`}
       >
         {producto.nombre}
       </span>
       <span
         style={{
-          background:   "rgba(249,115,22,0.10)",
+          background:   disponible ? "rgba(249,115,22,0.10)" : "rgba(0,0,0,0.06)",
           borderRadius: "10px",
           padding:      "2px 8px",
           fontSize:     "11px",
-          color:        "#f97316",
+          color:        disponible ? "#f97316" : "#9ca3af",
           fontWeight:   500,
           lineHeight:   1.4,
         }}
       >
-        ₡{Number(producto.precio).toLocaleString("es-CR")}
+        {disponible ? `₡${Number(producto.precio).toLocaleString("es-CR")}` : "Agotado"}
       </span>
     </button>
   );
@@ -181,6 +189,7 @@ function BebidasSection({ productos }: { productos: Producto[] }) {
 
 function ProductCard({ producto }: { producto: Producto }) {
   const agregarProducto = useCartStore((s) => s.agregarProducto);
+  const disponible      = producto.disponible ?? true;
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
@@ -193,9 +202,10 @@ function ProductCard({ producto }: { producto: Producto }) {
             fill
             className="object-cover"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            style={{ filter: disponible ? "none" : "grayscale(1)", opacity: disponible ? 1 : 0.4 }}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-stone-900 to-orange-950">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-stone-900 to-orange-950" style={{ opacity: disponible ? 1 : 0.4 }}>
             <Sandwich className="w-16 h-16 text-orange-500/20" />
           </div>
         )}
@@ -204,11 +214,23 @@ function ProductCard({ producto }: { producto: Producto }) {
         <div className="absolute top-3 right-3 z-10 bg-white rounded-full px-3 py-1 text-xs font-bold text-gray-900 shadow">
           {fmt(producto.precio)}
         </div>
+
+        {/* Badge Agotado */}
+        {!disponible && (
+          <div style={{
+            position: "absolute", bottom: 6, left: 6, zIndex: 10,
+            background: "rgba(0,0,0,0.7)", color: "#fff",
+            borderRadius: 4, fontSize: 9, fontWeight: 600,
+            padding: "2px 6px", letterSpacing: "0.04em",
+          }}>
+            Agotado
+          </div>
+        )}
       </div>
 
       {/* Cuerpo */}
       <div className="p-3">
-        <p className="text-sm font-semibold text-gray-900 mb-1 leading-tight">
+        <p className={`text-sm font-semibold mb-1 leading-tight ${disponible ? "text-gray-900" : "text-gray-400"}`}>
           {producto.nombre}
         </p>
 
@@ -219,22 +241,28 @@ function ProductCard({ producto }: { producto: Producto }) {
         )}
 
         <div className="flex items-center justify-between mt-auto">
-          <span className="text-sm font-bold text-orange-500">
+          <span className={`text-sm font-bold ${disponible ? "text-orange-500" : "text-gray-400"}`}>
             {fmt(producto.precio)}
           </span>
-          <button
-            onClick={() =>
-              agregarProducto({
-                id: producto.id,
-                nombre: producto.nombre,
-                precio: Number(producto.precio),
-              })
-            }
-            className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
-          >
-            <Plus size={12} />
-            Agregar
-          </button>
+          {disponible ? (
+            <button
+              onClick={() =>
+                agregarProducto({
+                  id: producto.id,
+                  nombre: producto.nombre,
+                  precio: Number(producto.precio),
+                })
+              }
+              className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
+            >
+              <Plus size={12} />
+              Agregar
+            </button>
+          ) : (
+            <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full font-medium cursor-not-allowed">
+              No disponible
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -341,12 +369,11 @@ export default function MenuClient({
           </div>
         ) : (
           categoriasFiltradas.map((cat) => {
-            const disponibles = cat.productos.filter((p) => p.disponible);
-            if (disponibles.length === 0) return null;
+            if (cat.productos.length === 0) return null;
 
             const nombreCat = cat.nombre.toLowerCase().trim();
-            const esExtras   = nombreCat === "extras";
-            const esBebidas  = nombreCat === "bebidas";
+            const esExtras  = nombreCat === "extras";
+            const esBebidas = nombreCat === "bebidas";
 
             return (
               <section key={cat.id} id={`cat-${cat.id}`} className="mb-10">
@@ -358,16 +385,16 @@ export default function MenuClient({
                 </div>
 
                 {esBebidas ? (
-                  <BebidasSection productos={disponibles} />
+                  <BebidasSection productos={cat.productos} />
                 ) : esExtras ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {disponibles.map((p) => (
+                    {cat.productos.map((p) => (
                       <ExtraChip key={p.id} producto={p} />
                     ))}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {disponibles.map((p) => (
+                    {cat.productos.map((p) => (
                       <ProductCard key={p.id} producto={p} />
                     ))}
                   </div>
