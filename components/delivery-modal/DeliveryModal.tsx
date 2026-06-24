@@ -43,7 +43,9 @@ export default function DeliveryModal() {
   const { isModalOpen, closeModal, onConfirm, selectedMethod, setMethod, address, setAddress } =
     useDeliveryStore();
 
-  const [busqueda,       setBusqueda]       = useState("");
+  const [busqueda,       setBusqueda]       = useState(
+    selectedMethod === "delivery" && address ? address : ""
+  );
   const [zonaSeleccionada, setZonaSeleccionada] = useState<string | null>(null);
   const [direccionExacta,  setDireccionExacta]  = useState("");
   const [referencia,       setReferencia]        = useState("");

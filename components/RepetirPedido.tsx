@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/store/carstore";
 import type { Extra } from "@/store/carstore";
+import { useCheckoutPrefillStore } from "@/store/checkoutPrefillStore";
 
 type PedidoItem = {
   nombre_producto: string;
@@ -17,6 +18,11 @@ type PedidoItem = {
 type UltimoPedido = {
   created_at: string;
   total: number | string;
+  nombre_cliente: string;
+  comentarios: string | null;
+  metodo_pago: string;
+  delivery_method: "pickup" | "delivery" | null;
+  delivery_address: string | null;
   pedido_items: PedidoItem[];
 };
 
@@ -54,6 +60,7 @@ export default function RepetirPedido() {
       .from("pedidos")
       .select(`
         created_at, total,
+        nombre_cliente, comentarios, metodo_pago, delivery_method, delivery_address,
         pedido_items (nombre_producto, cantidad, precio, extras, producto_id)
       `)
       .eq("telefono", telefono)
@@ -116,6 +123,14 @@ export default function RepetirPedido() {
     setCargando(false);
 
     if (items.length - omitidosList.length > 0) {
+      useCheckoutPrefillStore.getState().setPrefill({
+        nombre:         pedido.nombre_cliente,
+        telefono:       telefono,
+        comentarios:    pedido.comentarios    ?? "",
+        metodoPago:     pedido.metodo_pago    ?? "",
+        deliveryMethod: pedido.delivery_method ?? null,
+        deliveryAddress: pedido.delivery_address ?? "",
+      });
       router.push("/carrito");
     }
   };

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useCartStore, type Extra } from "@/store/carstore";
 import { useDeliveryStore } from "@/store/deliveryStore";
+import { useCheckoutPrefillStore } from "@/store/checkoutPrefillStore";
 import ExtrasModal from "@/components/ExtrasModal";
 import {
   Minus,
@@ -51,8 +52,24 @@ export default function CarritoPage() {
   const [comprobanteError, setComprobanteError]       = useState<string | null>(null);
   const comprobanteInputRef = useRef<HTMLInputElement>(null);
 
-  const { openModal, setOnConfirm } = useDeliveryStore();
+  const { openModal, setOnConfirm, setMethod: setDeliveryMethod, setAddress: setDeliveryAddress } = useDeliveryStore();
+  const prefill      = useCheckoutPrefillStore((s) => s.prefill);
+  const clearPrefill = useCheckoutPrefillStore((s) => s.clearPrefill);
   const router = useRouter();
+
+  // Precompletar campos del checkout con datos del pedido anterior (si viene de "Repetir último pedido")
+  useEffect(() => {
+    if (!prefill) return;
+    setNombre(prefill.nombre);
+    setTelefono(prefill.telefono);
+    setComentarios(prefill.comentarios);
+    setMetodoPago(prefill.metodoPago);
+    if (prefill.deliveryMethod) {
+      setDeliveryMethod(prefill.deliveryMethod);
+      if (prefill.deliveryAddress) setDeliveryAddress(prefill.deliveryAddress);
+    }
+    clearPrefill();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bloquea el scroll mientras cualquier modal de confirmación está abierto
   useEffect(() => {
