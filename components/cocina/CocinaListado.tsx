@@ -124,10 +124,24 @@ export default function CocinaListado({ initialPedidos }: { initialPedidos: Pedi
     nuevosTimer.current.set(nuevoPedido.id, t);
   };
 
-  // ── Canal Realtime (INSERT) ─────────────────────────────────────────────────
+  // ── Canal Realtime (INSERT + UPDATE) ────────────────────────────────────────
   useEffect(() => {
     const canal = supabase
       .channel("cocina-pedidos-v2")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "pedidos" },
+        (payload) => {
+          const updated = payload.new as Pedido;
+          if (!updated?.id) return;
+          // Actualiza solo los campos del pedido en estado (preserva pedido_items locales)
+          setPedidos((prev) =>
+            prev.map((p) =>
+              p.id === updated.id ? { ...p, ...updated } : p
+            )
+          );
+        }
+      )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "pedidos" },
