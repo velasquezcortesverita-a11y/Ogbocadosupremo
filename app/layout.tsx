@@ -3,6 +3,7 @@ import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { DeliveryModalPortal } from "@/components/delivery-modal";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -33,6 +34,7 @@ export default function RootLayout({
         <Navbar />
         <DeliveryModalPortal />
         {children}
+        <Analytics />
       </body>
     </html>
   );

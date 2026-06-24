@@ -63,6 +63,25 @@ export default function CarritoPage() {
     };
   }, [pedidoEnviado, pedidoSinpe]);
 
+  // Registra evento de carrito para medir abandono
+  useEffect(() => {
+    if (items.length === 0) return;
+    if (sessionStorage.getItem("carrito_evento_id")) return;
+    (async () => {
+      const { data } = await supabase
+        .from("eventos_carrito")
+        .insert({
+          productos: items.map((i) => ({ id: i.id, nombre: i.nombre, cantidad: i.cantidad })),
+          total: total(),
+          completado: false,
+        })
+        .select("id")
+        .single();
+      if (data?.id) sessionStorage.setItem("carrito_evento_id", data.id);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Envía el pedido a Supabase — se llama desde el modal al confirmar la entrega
   const enviarPedido = async () => {
     // Leer delivery ANTES del primer await: closeModal() resetea address justo después
@@ -116,6 +135,16 @@ export default function CarritoPage() {
       alert("Error al guardar productos");
       setEnviando(false);
       return;
+    }
+
+    // Marcar evento de carrito como completado
+    const eventoId = sessionStorage.getItem("carrito_evento_id");
+    if (eventoId) {
+      await supabase
+        .from("eventos_carrito")
+        .update({ completado: true, telefono })
+        .eq("id", eventoId);
+      sessionStorage.removeItem("carrito_evento_id");
     }
 
     limpiarCarrito();

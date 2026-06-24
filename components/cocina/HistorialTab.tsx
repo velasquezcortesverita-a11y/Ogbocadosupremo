@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ChevronLeft, ChevronRight, Loader2, Printer } from "lucide-react";
+import ResumenPeriodo from "@/components/cocina/ResumenPeriodo";
 
 // ─── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -280,6 +281,7 @@ export default function HistorialTab() {
   const [modal,     setModal]     = useState<ModalState>(null);
   const [diaLabel,  setDiaLabel]  = useState("");
   const [diaInicio, setDiaInicio] = useState<string | null>(null);
+  const [subTab,    setSubTab]    = useState<"calendario" | "resumen">("calendario");
 
   // Cargar dia_inicio para calcular datos en tiempo real del día actual (Caso 1)
   useEffect(() => {
@@ -382,6 +384,25 @@ export default function HistorialTab() {
   return (
     <div style={{ background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 16, padding: 20 }}>
 
+      {/* Sub-tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, borderBottom: "1px solid rgba(0,0,0,0.07)", paddingBottom: 14 }}>
+        {(["calendario", "resumen"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setSubTab(tab)}
+            style={{
+              padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500, cursor: "pointer",
+              border: subTab === tab ? "1px solid rgba(249,115,22,0.35)" : "1px solid rgba(0,0,0,0.1)",
+              background: subTab === tab ? "rgba(249,115,22,0.08)" : "rgba(0,0,0,0)",
+              color: subTab === tab ? "#f97316" : "#6b7280",
+            }}
+          >
+            {tab === "calendario" ? "📅 Calendario" : "📊 Resumen"}
+          </button>
+        ))}
+      </div>
+
       {/* Spinner mientras carga datos del día seleccionado */}
       {modal?.tipo === "cargando" && (
         <div style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -401,6 +422,8 @@ export default function HistorialTab() {
         />
       )}
 
+      {subTab === "resumen" ? <ResumenPeriodo /> : (
+      <>
       {/* Header: mes + navegación */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <span style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>
@@ -505,6 +528,7 @@ export default function HistorialTab() {
           </span>
         )}
       </div>
+      </>)}
     </div>
   );
 }

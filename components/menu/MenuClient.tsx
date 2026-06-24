@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Plus, ShoppingBag, Sandwich } from "lucide-react";
 import { useCartStore } from "@/store/carstore";
 import MenuHeroSlideshow from "@/components/menu/MenuHeroSlideshow";
+import RepetirPedido from "@/components/RepetirPedido";
 
 export type Producto = {
   id: string;
@@ -360,6 +361,7 @@ export default function MenuClient({
 
       {/* Secciones */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-28">
+        <RepetirPedido />
         {categorias.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center text-gray-400">
             <span className="text-6xl mb-4">🍽️</span>
