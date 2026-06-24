@@ -5,6 +5,17 @@ import { supabase } from "@/lib/supabase";
 import PedidoCard from "@/components/cocina/PedidoCard";
 import type { Pedido } from "@/types/pedido";
 
+const PEDIDO_SELECT = `
+  *,
+  pedido_items (
+    id,
+    nombre_producto,
+    cantidad,
+    precio,
+    extras
+  )
+` as const;
+
 // ─── Sonido de notificación ────────────────────────────────────────────────────
 // Coloca el archivo en public/sounds/notificacion.mp3
 // Si no existe, se usa un beep sintético con la Web Audio API como fallback.
@@ -86,62 +97,100 @@ export default function CocinaListado({ initialPedidos }: { initialPedidos: Pedi
   const toastTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nuevosTimer = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
+  // IDs ya procesados — evita duplicados entre Realtime y el polling de respaldo
+  const seenIdsRef = useRef<Set<string>>(new Set(initialPedidos.map((p) => p.id)));
+
+  const notificarNuevo = (nuevoPedido: Pedido) => {
+    seenIdsRef.current.add(nuevoPedido.id);
+    setPedidos((prev) => [nuevoPedido, ...prev]);
+
+    playNotif();
+
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(nuevoPedido);
+    toastTimer.current = setTimeout(() => setToast(null), 5000);
+
+    setNuevosIds((prev) => new Set([...prev, nuevoPedido.id]));
+    const t = setTimeout(() => {
+      setNuevosIds((prev) => {
+        const next = new Set(prev);
+        next.delete(nuevoPedido.id);
+        return next;
+      });
+      nuevosTimer.current.delete(nuevoPedido.id);
+    }, 30_000);
+    nuevosTimer.current.set(nuevoPedido.id, t);
+  };
+
+  // ── Canal Realtime (INSERT) ─────────────────────────────────────────────────
   useEffect(() => {
     const canal = supabase
-      .channel("cocina-pedidos")
+      .channel("cocina-pedidos-v2")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "pedidos" },
         async (payload) => {
-          const { data } = await supabase
+          const newId = (payload.new as { id?: string })?.id;
+          if (!newId || seenIdsRef.current.has(newId)) return;
+
+          // Pequeña espera para que pedido_items terminen de insertarse
+          await new Promise((r) => setTimeout(r, 1000));
+
+          const { data, error } = await supabase
             .from("pedidos")
-            .select(`
-              *,
-              pedido_items (
-                id,
-                nombre_producto,
-                cantidad,
-                precio,
-                extras
-              )
-            `)
-            .eq("id", (payload.new as { id: string }).id)
+            .select(PEDIDO_SELECT)
+            .eq("id", newId)
             .single();
 
-          if (!data) return;
-          const nuevoPedido = data as Pedido;
+          if (error || !data) {
+            console.error("CocinaListado Realtime: error al obtener pedido", newId, error?.message);
+            return;
+          }
 
-          setPedidos((prev) => [nuevoPedido, ...prev]);
-
-          // Sonido
-          playNotif();
-
-          // Toast (se cierra solo a los 5 s)
-          if (toastTimer.current) clearTimeout(toastTimer.current);
-          setToast(nuevoPedido);
-          toastTimer.current = setTimeout(() => setToast(null), 5000);
-
-          // Resaltado verde — desaparece a los 30 s
-          setNuevosIds((prev) => new Set([...prev, nuevoPedido.id]));
-          const t = setTimeout(() => {
-            setNuevosIds((prev) => {
-              const next = new Set(prev);
-              next.delete(nuevoPedido.id);
-              return next;
-            });
-            nuevosTimer.current.delete(nuevoPedido.id);
-          }, 30_000);
-          nuevosTimer.current.set(nuevoPedido.id, t);
+          notificarNuevo(data as Pedido);
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (err) console.error("CocinaListado canal error:", err);
+        console.info("CocinaListado Realtime status:", status);
+      });
 
     return () => {
       supabase.removeChannel(canal);
       if (toastTimer.current) clearTimeout(toastTimer.current);
       nuevosTimer.current.forEach((t) => clearTimeout(t));
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Polling de respaldo cada 20 s ───────────────────────────────────────────
+  useEffect(() => {
+    const poll = async () => {
+      const { data } = await supabase
+        .from("pedidos")
+        .select(PEDIDO_SELECT)
+        .neq("estado", "entregado")
+        .neq("estado", "pago_rechazado")
+        .order("created_at", { ascending: false });
+
+      if (!data) return;
+
+      const nuevos = (data as Pedido[]).filter(
+        (p) => !seenIdsRef.current.has(p.id)
+      );
+
+      if (nuevos.length === 0) return;
+
+      // Notificar solo el primero con sonido/toast; los demás solo se agregan
+      notificarNuevo(nuevos[0]);
+      for (let i = 1; i < nuevos.length; i++) {
+        seenIdsRef.current.add(nuevos[i].id);
+        setPedidos((prev) => [nuevos[i], ...prev]);
+      }
+    };
+
+    const interval = setInterval(poll, 20_000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleEntregado(id: string) {
     window.dispatchEvent(new CustomEvent("resumen-actualizar"));
