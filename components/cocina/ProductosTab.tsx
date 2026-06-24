@@ -504,17 +504,28 @@ export default function ProductosTab() {
   const cargar = useCallback(async () => {
     setLoading(true);
     const extrasCatId = await getExtrasCatId();
-    const [{ data: prods }, { data: pdm }] = await Promise.all([
-      supabase.from("productos").select("id, nombre, precio, imagen_url, extras_permitidos, disponible, categoria_id").order("nombre"),
+    const [{ data: prods, error: prodsErr }, { data: pdm }] = await Promise.all([
+      // select("*") para no fallar si columnas nuevas (disponible, extras_permitidos)
+      // todavía no existen en la tabla de Supabase
+      supabase.from("productos").select("*").order("nombre"),
       supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_imagen").maybeSingle(),
     ]);
 
+    if (prodsErr) console.error("ProductosTab: error al cargar productos:", prodsErr.message);
+
     // Excluir extras de la lista de platillos
-    type RawProd = Producto & { categoria_id?: string | null };
+    type RawProd = Producto & { categoria_id?: string | null; [key: string]: unknown };
     const todos = (prods ?? []) as RawProd[];
     const platillos: Producto[] = todos
       .filter((p) => !extrasCatId || p.categoria_id !== extrasCatId)
-      .map(({ categoria_id: _c, ...rest }) => rest as Producto);
+      .map(({ id, nombre, precio, imagen_url, extras_permitidos, disponible }) => ({
+        id:               id as string,
+        nombre:           nombre as string,
+        precio:           precio as number,
+        imagen_url:       (imagen_url as string | null) ?? null,
+        extras_permitidos: (extras_permitidos as string[] | null) ?? null,
+        disponible:       (disponible as boolean | undefined) ?? undefined,
+      }));
 
     setProductos(platillos);
     if (pdm?.valor) setPdmUrl(pdm.valor as string);
