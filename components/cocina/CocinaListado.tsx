@@ -101,6 +101,8 @@ export default function CocinaListado({ initialPedidos }: { initialPedidos: Pedi
   const seenIdsRef = useRef<Set<string>>(new Set(initialPedidos.map((p) => p.id)));
 
   const notificarNuevo = (nuevoPedido: Pedido) => {
+    // Idempotencia: si ya fue procesado (por polling o por otro intento), no duplicar
+    if (seenIdsRef.current.has(nuevoPedido.id)) return;
     seenIdsRef.current.add(nuevoPedido.id);
     setPedidos((prev) => [nuevoPedido, ...prev]);
 
@@ -133,21 +135,31 @@ export default function CocinaListado({ initialPedidos }: { initialPedidos: Pedi
           const newId = (payload.new as { id?: string })?.id;
           if (!newId || seenIdsRef.current.has(newId)) return;
 
-          // Pequeña espera para que pedido_items terminen de insertarse
-          await new Promise((r) => setTimeout(r, 1000));
-
-          const { data, error } = await supabase
-            .from("pedidos")
-            .select(PEDIDO_SELECT)
-            .eq("id", newId)
-            .single();
-
-          if (error || !data) {
-            console.error("CocinaListado Realtime: error al obtener pedido", newId, error?.message);
-            return;
+          // Hasta 3 intentos con espera creciente para que pedido_items terminen de insertarse
+          let pedido: Pedido | null = null;
+          for (let intento = 0; intento < 3 && !pedido; intento++) {
+            await new Promise((r) => setTimeout(r, 800 * (intento + 1)));
+            // Si la polling lo procesó durante la espera, no duplicar
+            if (seenIdsRef.current.has(newId)) return;
+            const { data } = await supabase
+              .from("pedidos")
+              .select(PEDIDO_SELECT)
+              .eq("id", newId)
+              .single();
+            if (data) {
+              pedido = data as Pedido;
+            } else {
+              console.warn(`CocinaListado Realtime: intento ${intento + 1} falló para pedido`, newId);
+            }
           }
 
-          notificarNuevo(data as Pedido);
+          // Fallback: usar los datos del evento para que el pedido aparezca aunque el SELECT falle
+          if (!pedido) {
+            console.warn("CocinaListado Realtime: usando payload.new como fallback para", newId);
+            pedido = { ...(payload.new as Pedido), pedido_items: [] };
+          }
+
+          notificarNuevo(pedido);
         }
       )
       .subscribe((status, err) => {
@@ -162,7 +174,7 @@ export default function CocinaListado({ initialPedidos }: { initialPedidos: Pedi
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Polling de respaldo cada 20 s ───────────────────────────────────────────
+  // ── Polling de respaldo cada 10 s ───────────────────────────────────────────
   useEffect(() => {
     const poll = async () => {
       const { data } = await supabase
@@ -188,7 +200,7 @@ export default function CocinaListado({ initialPedidos }: { initialPedidos: Pedi
       }
     };
 
-    const interval = setInterval(poll, 20_000);
+    const interval = setInterval(poll, 10_000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
