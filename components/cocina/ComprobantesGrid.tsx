@@ -229,8 +229,8 @@ export default function ComprobantesGrid({ diaInicio }: { diaInicio?: string }) 
   };
 
   const confirmarPago = async (id: string) => {
-    await supabase.from("pedidos").update({ estado: "preparando" }).eq("id", id);
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, estado: "preparando" } : i)));
+    await supabase.from("pedidos").update({ estado: "preparando", comprobante_revisado: true }).eq("id", id);
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, estado: "preparando", comprobante_revisado: true } : i)));
     window.dispatchEvent(new CustomEvent("resumen-actualizar"));
   };
 

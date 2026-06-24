@@ -184,28 +184,15 @@ export default function PedidoCard({
   };
 
   const confirmarPago = async () => {
-    // Actualizar estado (operación principal)
-    const { error: e1 } = await supabase
+    const { error } = await supabase
       .from("pedidos")
-      .update({ estado: "preparando" })
+      .update({ estado: "preparando", comprobante_revisado: true })
       .eq("id", pedido.id);
 
-    if (e1) {
-      console.error("confirmarPago — error al actualizar estado:", e1.code, e1.message, e1.details);
+    if (error) {
+      console.error("confirmarPago error:", error.code, error.message, error.details);
       setErrorMsg("Error al confirmar el pago.");
       return;
-    }
-
-    // Marcar comprobante revisado (secundario — no bloquea el flujo si falla)
-    const { error: e2 } = await supabase
-      .from("pedidos")
-      .update({ comprobante_revisado: true })
-      .eq("id", pedido.id);
-
-    if (e2) {
-      // La columna puede no existir aún — logear para diagnóstico sin bloquear
-      console.error("confirmarPago — error al marcar comprobante_revisado:", e2.code, e2.message, e2.details);
-      console.warn("Si el código es '42703', la columna comprobante_revisado no existe en la tabla pedidos. Correr: ALTER TABLE pedidos ADD COLUMN comprobante_revisado boolean DEFAULT false;");
     }
 
     setPagoEstado("confirmado");
