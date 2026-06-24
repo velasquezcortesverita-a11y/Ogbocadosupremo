@@ -128,6 +128,90 @@ function SinpeModal({
   );
 }
 
+// ─── Modal advertencia SINPE sin confirmar ────────────────────────────────────
+
+function SinpeWarningModal({
+  onCancelar,
+  onConfirmar,
+}: {
+  onCancelar: () => void;
+  onConfirmar: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancelar(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onCancelar]);
+
+  return (
+    <div
+      onClick={onCancelar}
+      style={{
+        position: "fixed", inset: 0, zIndex: 80,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          maxWidth: 320,
+          width: "100%",
+          padding: "24px 20px 20px",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 28, marginBottom: 12 }}>⚠️</div>
+        <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 8px" }}>
+          Pago SINPE sin confirmar
+        </p>
+        <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 20px", lineHeight: 1.5 }}>
+          Este pedido todavía no tiene el comprobante SINPE confirmado.
+          ¿Estás seguro de que querés marcarlo como entregado igual?
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onCancelar}
+            style={{
+              flex: 1,
+              background: "var(--color-background-secondary, #f3f4f6)",
+              color: "#6b7280",
+              border: "none",
+              borderRadius: 8,
+              padding: "10px 0",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirmar}
+            style={{
+              flex: 1,
+              background: "#ef4444",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "10px 0",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Marcar como entregado igual
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PedidoCard ───────────────────────────────────────────────────────────────
 
 export default function PedidoCard({
@@ -148,7 +232,8 @@ export default function PedidoCard({
   const [pagoEstado,  setPagoEstado]  = useState<"confirmado" | "rechazado" | null>(
     pedido.comprobante_revisado === true ? "confirmado" : null
   );
-  const [sinpeModal,  setSinpeModal]  = useState(false);
+  const [sinpeModal,        setSinpeModal]        = useState(false);
+  const [sinpeWarningModal, setSinpeWarningModal] = useState(false);
 
   const cambiarEstado = async (nuevoEstado: string) => {
     setErrorMsg(null);
@@ -225,6 +310,18 @@ export default function PedidoCard({
 
   return (
     <>
+      {/* Modal advertencia SINPE sin confirmar */}
+      {sinpeWarningModal && (
+        <SinpeWarningModal
+          onCancelar={() => setSinpeWarningModal(false)}
+          onConfirmar={() => {
+            setSinpeWarningModal(false);
+            onVerNuevo?.();
+            cambiarEstado("entregado");
+          }}
+        />
+      )}
+
       {/* Modal Ver Sinpe */}
       {sinpeModal && (
         <SinpeModal
@@ -455,7 +552,14 @@ export default function PedidoCard({
             </button>
           )}
           <button
-            onClick={() => { onVerNuevo?.(); cambiarEstado("entregado"); }}
+            onClick={() => {
+              if (esSinpe && !sinpeConfirmado) {
+                setSinpeWarningModal(true);
+              } else {
+                onVerNuevo?.();
+                cambiarEstado("entregado");
+              }
+            }}
             className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold bg-gray-800 hover:bg-gray-900 active:scale-95 text-white transition-all"
           >
             Entregado
