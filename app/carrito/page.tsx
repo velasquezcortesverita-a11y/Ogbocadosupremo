@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useCartStore, type Extra } from "@/store/carstore";
+import { useCartStore, type Extra, type CartItem } from "@/store/carstore";
 import { useDeliveryStore } from "@/store/deliveryStore";
 import { useCheckoutPrefillStore } from "@/store/checkoutPrefillStore";
 import ExtrasModal from "@/components/ExtrasModal";
@@ -39,12 +39,17 @@ export default function CarritoPage() {
   const [metodoPago, setMetodoPago] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [pedidoEnviado, setPedidoEnviado] = useState(false);
-  const [pedidoSinpe, setPedidoSinpe] = useState<{
-    pedidoId:      string;
-    numeroPedido:  number | string;
-    totalPedido:   number;
-    nombreCliente: string;
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [sinpePendiente, setSinpePendiente] = useState<{
+    totalPedido:        number;
+    nombreCliente:      string;
+    telefonoCliente:    string;
+    comentariosCliente: string;
+    selectedMethod:     "pickup" | "delivery" | null;
+    deliveryAddress:    string | null;
+    items:              CartItem[];
   } | null>(null);
+  const [numeroPedidoCreado, setNumeroPedidoCreado] = useState<number | null>(null);
   const [comprobanteFile, setComprobanteFile]         = useState<File | null>(null);
   const [comprobantePreview, setComprobantePreview]   = useState<string | null>(null);
   const [subiendoComprobante, setSubiendoComprobante] = useState(false);
@@ -74,11 +79,11 @@ export default function CarritoPage() {
   // Bloquea el scroll mientras cualquier modal de confirmación está abierto
   useEffect(() => {
     document.body.style.overflow =
-      pedidoEnviado || pedidoSinpe !== null ? "hidden" : "";
+      pedidoEnviado || sinpePendiente !== null ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [pedidoEnviado, pedidoSinpe]);
+  }, [pedidoEnviado, sinpePendiente]);
 
   // Registra evento de carrito para medir abandono
   useEffect(() => {
@@ -109,6 +114,20 @@ export default function CarritoPage() {
     const nombreLocal = nombre;
     const totalLocal  = total();
 
+    // SINPE: no crear el pedido hasta que el cliente adjunte el comprobante
+    if (pagoLocal === "sinpe") {
+      setSinpePendiente({
+        totalPedido:        totalLocal,
+        nombreCliente:      nombreLocal,
+        telefonoCliente:    telefono,
+        comentariosCliente: comentarios,
+        selectedMethod,
+        deliveryAddress:    selectedMethod === "delivery" ? deliveryAddress : null,
+        items:              [...items],
+      });
+      return;
+    }
+
     setEnviando(true);
 
     const payload = {
@@ -135,12 +154,12 @@ export default function CarritoPage() {
     }
 
     const detalles = items.map((item) => ({
-      pedido_id:      pedido.id,
-      producto_id:    item.id,
+      pedido_id:       pedido.id,
+      producto_id:     item.id,
       nombre_producto: item.nombre,
-      cantidad:       item.cantidad,
-      precio:         item.precio,
-      extras:         item.extras ?? [],
+      cantidad:        item.cantidad,
+      precio:          item.precio,
+      extras:          item.extras ?? [],
     }));
 
     const { error: detalleError } = await supabase
@@ -169,25 +188,30 @@ export default function CarritoPage() {
     setTelefono("");
     setComentarios("");
     setMetodoPago("");
+    setFieldErrors({});
     setEnviando(false);
+    setPedidoEnviado(true);
+  };
 
-    if (pagoLocal === "sinpe") {
-      setPedidoSinpe({
-        pedidoId:      (pedido as { id: string }).id,
-        numeroPedido:  (pedido as { numero_pedido: number | string }).numero_pedido,
-        totalPedido:   totalLocal,
-        nombreCliente: nombreLocal,
-      });
-    } else {
-      setPedidoEnviado(true);
-    }
+  const validarCampo = (campo: string, valor: string): string => {
+    if (campo === "nombre")     return !valor.trim() ? "El nombre es obligatorio" : "";
+    if (campo === "telefono")   return !valor ? "El teléfono es obligatorio" : valor.length < 8 ? "El teléfono debe tener 8 dígitos" : "";
+    if (campo === "metodoPago") return !valor ? "Seleccioná un método de pago" : "";
+    return "";
   };
 
   // Valida el form, registra el callback y abre el modal de entrega
   const handleFormSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!nombre || !telefono || !metodoPago) {
-      alert("Complete todos los campos");
+    const errs: Record<string, string> = {
+      nombre:     validarCampo("nombre",     nombre),
+      telefono:   validarCampo("telefono",   telefono),
+      metodoPago: validarCampo("metodoPago", metodoPago),
+    };
+    setFieldErrors(errs);
+    if (Object.values(errs).some(Boolean)) {
+      const primerError = Object.keys(errs).find((k) => errs[k]);
+      if (primerError) document.querySelector(`[data-field="${primerError}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     setOnConfirm(enviarPedido);
@@ -212,21 +236,64 @@ export default function CarritoPage() {
   };
 
   const handleConfirmarPago = async () => {
-    if (!comprobanteFile || !pedidoSinpe) return;
+    if (!comprobanteFile || !sinpePendiente) return;
     setSubiendoComprobante(true);
     setComprobanteError(null);
     try {
+      // 1. Subir comprobante a Cloudinary
       const form = new FormData();
       form.append("file", comprobanteFile);
       form.append("folder", "bocado-supremo/comprobantes");
       const res = await fetch("/api/upload", { method: "POST", body: form });
       if (!res.ok) throw new Error("Error al subir el comprobante.");
       const { url } = (await res.json()) as { url: string };
-      const { error } = await supabase
+
+      // 2. Crear pedido incluyendo comprobante_url desde el inicio
+      const { data: pedido, error: pedidoErr } = await supabase
         .from("pedidos")
-        .update({ comprobante_url: url })
-        .eq("id", pedidoSinpe.pedidoId);
-      if (error) throw new Error(error.message);
+        .insert({
+          nombre_cliente:   sinpePendiente.nombreCliente,
+          telefono:         sinpePendiente.telefonoCliente,
+          comentarios:      sinpePendiente.comentariosCliente,
+          metodo_pago:      "sinpe",
+          total:            sinpePendiente.totalPedido,
+          delivery_method:  sinpePendiente.selectedMethod,
+          delivery_address: sinpePendiente.deliveryAddress,
+          comprobante_url:  url,
+        })
+        .select()
+        .single();
+      if (pedidoErr) throw new Error(pedidoErr.message);
+
+      // 3. Crear items del pedido
+      const detalles = sinpePendiente.items.map((item) => ({
+        pedido_id:       pedido.id,
+        producto_id:     item.id,
+        nombre_producto: item.nombre,
+        cantidad:        item.cantidad,
+        precio:          item.precio,
+        extras:          item.extras ?? [],
+      }));
+      const { error: itemsErr } = await supabase.from("pedido_items").insert(detalles);
+      if (itemsErr) throw new Error(itemsErr.message);
+
+      // 4. Marcar evento de carrito como completado
+      const eventoId = sessionStorage.getItem("carrito_evento_id");
+      if (eventoId) {
+        await supabase
+          .from("eventos_carrito")
+          .update({ completado: true, telefono: sinpePendiente.telefonoCliente })
+          .eq("id", eventoId);
+        sessionStorage.removeItem("carrito_evento_id");
+      }
+
+      // 5. Guardar número de pedido para mostrarlo en confirmación
+      setNumeroPedidoCreado((pedido as { numero_pedido: number }).numero_pedido);
+
+      // 6. Limpiar carrito y formulario
+      limpiarCarrito();
+      setNombre(""); setTelefono(""); setComentarios(""); setMetodoPago(""); setFieldErrors({});
+
       setComprobanteEnviado(true);
     } catch (err) {
       setComprobanteError(err instanceof Error ? err.message : "Error al enviar el comprobante.");
@@ -239,15 +306,22 @@ export default function CarritoPage() {
     if (comprobantePreview) URL.revokeObjectURL(comprobantePreview);
     setComprobanteFile(null);
     setComprobantePreview(null);
+    const enviado = comprobanteEnviado;
     setComprobanteEnviado(false);
     setComprobanteError(null);
-    setPedidoSinpe(null);
+    setNumeroPedidoCreado(null);
+    setSinpePendiente(null);
     document.body.style.overflow = "";
-    router.push("/");
+    if (enviado) router.push("/");
+    // Si no se envió: no redirigir, el carrito sigue visible para reintentar
   };
 
-  const inputClass =
-    "w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all bg-white";
+  const inputBase  = "w-full border rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all";
+  const inputClass = `${inputBase} border-gray-200 bg-white focus:ring-orange-400`;
+  const getInputCls = (campo: string) =>
+    fieldErrors[campo]
+      ? `${inputBase} border-red-400 bg-red-50/40 focus:ring-red-300`
+      : inputClass;
 
   return (
     <>
@@ -263,7 +337,7 @@ export default function CarritoPage() {
       )}
 
       {/* ── Confirmación SINPE ──────────────────────────────────────────── */}
-      {pedidoSinpe && (
+      {sinpePendiente && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div
             className="bg-white w-full max-w-sm shadow-xl overflow-y-auto"
@@ -273,11 +347,11 @@ export default function CarritoPage() {
             <div className="pt-7 pb-5 px-6 text-center">
               <p style={{ fontSize: 32, lineHeight: 1, marginBottom: 10 }}>🎉</p>
               <p style={{ fontSize: 14, fontWeight: 500, color: "#111827", marginBottom: 4 }}>
-                ¡Gracias, {pedidoSinpe.nombreCliente}!
+                ¡Gracias, {sinpePendiente.nombreCliente}!
               </p>
               <p style={{ fontSize: 11, color: "#6b7280" }}>
-                Pedido #{pedidoSinpe.numeroPedido} · ₡
-                {Number(pedidoSinpe.totalPedido).toLocaleString("es-CR")}
+                {numeroPedidoCreado ? `Pedido #${numeroPedidoCreado} · ` : ""}₡
+                {Number(sinpePendiente.totalPedido).toLocaleString("es-CR")}
               </p>
             </div>
 
@@ -301,7 +375,7 @@ export default function CarritoPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0" }}>
                   <span style={{ color: "#9ca3af" }}>Monto</span>
                   <span style={{ color: "#f97316", fontWeight: 700 }}>
-                    ₡{Number(pedidoSinpe.totalPedido).toLocaleString("es-CR")}
+                    ₡{Number(sinpePendiente.totalPedido).toLocaleString("es-CR")}
                   </span>
                 </div>
               </div>
@@ -599,24 +673,32 @@ export default function CarritoPage() {
                 </h2>
 
                 <form onSubmit={handleFormSubmit} className="space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                      Nombre completo
+                  <div data-field="nombre">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                      Nombre completo<span style={{ color: "#ef4444" }}>*</span>
                     </label>
                     <input
                       type="text"
                       placeholder="Ej. Juan Pérez"
                       value={nombre}
-                      onChange={(e) =>
-                        setNombre(e.target.value.replace(/[0-9]/g, ""))
-                      }
-                      className={inputClass}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[0-9]/g, "");
+                        setNombre(val);
+                        if (fieldErrors.nombre) setFieldErrors((p) => ({ ...p, nombre: validarCampo("nombre", val) }));
+                      }}
+                      onBlur={(e) => setFieldErrors((p) => ({ ...p, nombre: validarCampo("nombre", e.target.value.replace(/[0-9]/g, "")) }))}
+                      className={getInputCls("nombre")}
                     />
+                    {fieldErrors.nombre && (
+                      <p style={{ fontSize: 10, color: "#ef4444", marginTop: 4, display: "flex", alignItems: "center", gap: 3 }}>
+                        ⚠ {fieldErrors.nombre}
+                      </p>
+                    )}
                   </div>
 
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                      Teléfono
+                  <div data-field="telefono">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                      Teléfono<span style={{ color: "#ef4444" }}>*</span>
                     </label>
                     <input
                       type="tel"
@@ -624,32 +706,49 @@ export default function CarritoPage() {
                       placeholder="Ej. 88888888"
                       maxLength={8}
                       value={telefono}
-                      onChange={(e) =>
-                        setTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))
-                      }
-                      className={inputClass}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 8);
+                        setTelefono(val);
+                        if (fieldErrors.telefono) setFieldErrors((p) => ({ ...p, telefono: validarCampo("telefono", val) }));
+                      }}
+                      onBlur={(e) => setFieldErrors((p) => ({ ...p, telefono: validarCampo("telefono", e.target.value.replace(/\D/g, "").slice(0, 8)) }))}
+                      className={getInputCls("telefono")}
                     />
+                    {fieldErrors.telefono && (
+                      <p style={{ fontSize: 10, color: "#ef4444", marginTop: 4, display: "flex", alignItems: "center", gap: 3 }}>
+                        ⚠ {fieldErrors.telefono}
+                      </p>
+                    )}
                   </div>
 
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                      Método de pago
+                  <div data-field="metodoPago">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                      Método de pago<span style={{ color: "#ef4444" }}>*</span>
                     </label>
                     <select
                       value={metodoPago}
-                      onChange={(e) => setMetodoPago(e.target.value)}
-                      className={inputClass}
+                      onChange={(e) => {
+                        setMetodoPago(e.target.value);
+                        if (fieldErrors.metodoPago) setFieldErrors((p) => ({ ...p, metodoPago: validarCampo("metodoPago", e.target.value) }));
+                      }}
+                      onBlur={(e) => setFieldErrors((p) => ({ ...p, metodoPago: validarCampo("metodoPago", e.target.value) }))}
+                      className={getInputCls("metodoPago")}
                     >
                       <option value="">Seleccione una opción</option>
                       <option value="sinpe">SINPE Móvil</option>
                       <option value="efectivo">Efectivo</option>
                     </select>
+                    {fieldErrors.metodoPago && (
+                      <p style={{ fontSize: 10, color: "#ef4444", marginTop: 4, display: "flex", alignItems: "center", gap: 3 }}>
+                        ⚠ {fieldErrors.metodoPago}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
                       Comentarios{" "}
-                      <span className="text-gray-300 font-normal normal-case">
+                      <span style={{ fontSize: 9, color: "var(--color-text-tertiary, #9ca3af)", fontStyle: "italic", marginLeft: 4 }}>
                         (opcional)
                       </span>
                     </label>
