@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useCartStore, type Extra, type CartItem } from "@/store/carstore";
@@ -51,7 +51,13 @@ export default function CarritoPage() {
     items:              CartItem[];
   } | null>(null);
   const [numeroPedidoCreado, setNumeroPedidoCreado] = useState<number | null>(null);
+  // TEST-ONLY: ?forzar_cerrado=true simula estado cerrado sin importar la hora real
+  const searchParams = useSearchParams();
+  const forzarCerrado = searchParams.get("forzar_cerrado") === "true";
   const [estadoHorario, setEstadoHorario] = useState<EstadoHorario>(() => calcularEstado());
+  const estadoEfectivo: EstadoHorario = forzarCerrado
+    ? { abierto: false, mensaje: "Cerrado · Abrimos mañana a las 11:00 am" }
+    : estadoHorario;
   const [comprobanteFile, setComprobanteFile]         = useState<File | null>(null);
   const [comprobantePreview, setComprobantePreview]   = useState<string | null>(null);
   const [subiendoComprobante, setSubiendoComprobante] = useState(false);
@@ -676,14 +682,14 @@ export default function CarritoPage() {
 
               {/* Right: Form / Aviso cerrado */}
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 lg:sticky lg:top-24">
-                {!estadoHorario.abierto ? (
+                {!estadoEfectivo.abierto ? (
                   <div style={{ textAlign: "center", padding: "24px 8px 16px" }}>
                     <p style={{ fontSize: 28, lineHeight: 1, marginBottom: 14 }}>🌙</p>
                     <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary, #111827)", marginBottom: 8 }}>
                       Estamos cerrados ahora
                     </p>
                     <p style={{ fontSize: 12, color: "var(--color-text-secondary, #6b7280)", lineHeight: 1.6, maxWidth: 240, margin: "0 auto" }}>
-                      {estadoHorario.mensaje.replace(/^Cerrado · /, "")} — guardá tu pedido y volvé entonces
+                      {estadoEfectivo.mensaje.replace(/^Cerrado · /, "")} — guardá tu pedido y volvé entonces
                     </p>
                   </div>
                 ) : (
