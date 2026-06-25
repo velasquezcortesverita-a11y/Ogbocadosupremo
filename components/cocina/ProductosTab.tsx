@@ -6,6 +6,8 @@ import { Loader2, Pencil, Search, Star, Trash2 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
+type Categoria = { id: string; nombre: string };
+
 type Producto = {
   id: string;
   nombre: string;
@@ -13,6 +15,7 @@ type Producto = {
   imagen_url: string | null;
   extras_permitidos?: string[] | null;
   disponible?: boolean;
+  categoria_id?: string;
 };
 
 type Extra = { id: string; nombre: string; precio: number };
@@ -99,7 +102,6 @@ function ExtraModal({
       const { error: dbErr } = await supabase.from("productos").delete().eq("id", extra.id);
       if (dbErr) throw new Error(dbErr.message);
 
-      // Quitar este ID de extras_permitidos de todos los platillos que lo tengan
       const { data: afectados } = await supabase
         .from("productos")
         .select("id, extras_permitidos")
@@ -287,7 +289,6 @@ function EditModal({
   const [error,    setError]    = useState<string | null>(null);
   const [exito,    setExito]    = useState(false);
 
-  // Extras para este platillo
   const [allExtras,         setAllExtras]         = useState<Extra[]>([]);
   const [extrasPermitidos,  setExtrasPermitidos]  = useState<Set<string>>(new Set());
   const [loadingExtras,     setLoadingExtras]      = useState(false);
@@ -305,7 +306,6 @@ function EditModal({
     return () => { if (preview) URL.revokeObjectURL(preview); };
   }, [preview]);
 
-  // Cargar extras disponibles + configuración de este platillo
   useEffect(() => {
     if (isPdm) return;
     setLoadingExtras(true);
@@ -316,7 +316,6 @@ function EditModal({
       const extrasData = (data ?? []) as Extra[];
       setAllExtras(extrasData);
 
-      // extras_permitidos: null → todos; array → solo esos IDs
       const permitidos = producto?.extras_permitidos;
       if (permitidos == null) {
         setExtrasPermitidos(new Set(extrasData.map((e) => e.id)));
@@ -401,7 +400,6 @@ function EditModal({
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#111827", borderRadius: 16, maxWidth: 360, width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.55)" }}>
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px 10px" }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.9)" }}>
             {isPdm ? "Producto del mes" : "Editar platillo"}
@@ -410,7 +408,6 @@ function EditModal({
         </div>
 
         <div style={{ padding: "0 16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Imagen */}
           <input ref={inputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
           <div onClick={() => !saving && inputRef.current?.click()} style={{ position: "relative", height: 90, borderRadius: 10, overflow: "hidden", background: "rgba(249,115,22,0.08)", cursor: "pointer" }}>
             {imagenActual && <img src={imagenActual} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
@@ -423,7 +420,6 @@ function EditModal({
             )}
           </div>
 
-          {/* Nombre */}
           {!isPdm && (
             <div>
               <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Nombre</label>
@@ -431,7 +427,6 @@ function EditModal({
             </div>
           )}
 
-          {/* Precio */}
           {!isPdm && (
             <div>
               <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Precio (₡)</label>
@@ -439,7 +434,6 @@ function EditModal({
             </div>
           )}
 
-          {/* Extras disponibles para este platillo */}
           {!isPdm && (
             <div style={{ borderTop: "0.5px solid rgba(255,255,255,0.08)", paddingTop: 10, marginTop: 2 }}>
               <p style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.7)", margin: "0 0 8px" }}>
@@ -492,43 +486,262 @@ function EditModal({
   );
 }
 
+// ─── Modal de CREAR PLATILLO ──────────────────────────────────────────────────
+
+function CreateModal({
+  categorias,
+  onClose,
+  onCreated,
+}: {
+  categorias: Categoria[];
+  onClose: () => void;
+  onCreated: (prod: Producto) => void;
+}) {
+  const [nombre,  setNombre]  = useState("");
+  const [precio,  setPrecio]  = useState("");
+  const [catId,   setCatId]   = useState(categorias[0]?.id ?? "");
+  const [preview, setPreview] = useState<string | null>(null);
+  const [imgFile, setImgFile] = useState<File | null>(null);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [onClose]);
+
+  useEffect(() => {
+    return () => { if (preview) URL.revokeObjectURL(preview); };
+  }, [preview]);
+
+  const handleFile = (file: File) => {
+    if (!ALLOWED.includes(file.type)) { setError("Solo se permiten JPG, PNG o WEBP."); return; }
+    if (file.size > MAX_SIZE)         { setError("El archivo supera el máximo de 5 MB."); return; }
+    setError(null);
+    setImgFile(file);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const handleSave = async () => {
+    if (!nombre.trim()) { setError("El nombre no puede quedar vacío."); return; }
+    const p = Number(precio);
+    if (!p || p <= 0)   { setError("El precio debe ser mayor a 0."); return; }
+    if (!catId)         { setError("Seleccioná una categoría."); return; }
+    setSaving(true); setError(null);
+    try {
+      const { data: newProd, error: insertErr } = await supabase
+        .from("productos")
+        .insert({ nombre: nombre.trim(), precio: p, categoria_id: catId, disponible: true })
+        .select("*")
+        .single();
+      if (insertErr) throw new Error(insertErr.message);
+
+      let imgUrl: string | null = null;
+      if (imgFile) {
+        const form = new FormData();
+        form.append("file", imgFile);
+        form.append("folder", "bocado-supremo/productos");
+        form.append("publicId", newProd.id);
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        if (!res.ok) throw new Error("No se pudo subir la imagen.");
+        const json = await res.json() as { url?: string };
+        imgUrl = json.url ?? null;
+        if (imgUrl) {
+          await supabase.from("productos").update({ imagen_url: imgUrl }).eq("id", newProd.id);
+        }
+      }
+
+      onCreated({
+        id:                newProd.id,
+        nombre:            newProd.nombre,
+        precio:            newProd.precio,
+        imagen_url:        imgUrl,
+        extras_permitidos: null,
+        disponible:        true,
+        categoria_id:      catId,
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inpStyle: React.CSSProperties = {
+    width: "100%", boxSizing: "border-box",
+    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 8, padding: "8px 10px", color: "rgba(255,255,255,0.85)", fontSize: 13, outline: "none",
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#111827", borderRadius: 16, maxWidth: 360, width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.55)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px 10px" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.9)" }}>Nuevo platillo</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", lineHeight: 1, padding: "0 2px" }}>✕</button>
+        </div>
+
+        <div style={{ padding: "0 16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <input ref={inputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+          <div
+            onClick={() => !saving && inputRef.current?.click()}
+            style={{ position: "relative", height: 90, borderRadius: 10, overflow: "hidden", background: "rgba(249,115,22,0.08)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            {preview
+              ? <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              : <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Subir foto (opcional)</span>
+            }
+            <div style={{ position: "absolute", bottom: 0, right: 0, background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 10, padding: "3px 9px", borderRadius: "8px 0 10px 0" }}>
+              {preview ? "Cambiar foto" : "Subir foto"}
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Nombre</label>
+            <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Hamburguesa clásica" style={inpStyle} />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Precio (₡)</label>
+            <input type="number" min="1" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="0" style={{ ...inpStyle, color: "#f97316", fontSize: 15, fontWeight: 600 }} />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Categoría</label>
+            <select value={catId} onChange={(e) => setCatId(e.target.value)} style={{ ...inpStyle, appearance: "none" as React.CSSProperties["appearance"] }}>
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id} style={{ background: "#111827" }}>{c.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          {error && <p style={{ fontSize: 12, color: "#ef4444", background: "rgba(239,68,68,0.08)", borderRadius: 8, padding: "7px 10px", margin: 0 }}>{error}</p>}
+
+          <button onClick={handleSave} disabled={saving} style={{ width: "100%", border: "none", background: "#f97316", color: "#fff", fontWeight: 600, fontSize: 14, borderRadius: 8, padding: "11px 0", cursor: saving ? "default" : "pointer", opacity: saving ? 0.75 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            {saving ? <><Loader2 size={14} className="animate-spin" /> Creando...</> : "Crear platillo"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal de ELIMINAR PLATILLO ───────────────────────────────────────────────
+
+function DeleteModal({
+  producto,
+  pdmUrl,
+  onClose,
+  onDeleted,
+}: {
+  producto: Producto;
+  pdmUrl: string | null;
+  onClose: () => void;
+  onDeleted: (id: string, eraPdm: boolean) => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
+  const eraPdm = !!producto.imagen_url && producto.imagen_url === pdmUrl;
+
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [onClose]);
+
+  const handleDelete = async () => {
+    setDeleting(true); setError(null);
+    try {
+      const { error: dbErr } = await supabase.from("productos").delete().eq("id", producto.id);
+      if (dbErr) throw new Error(dbErr.message);
+      if (eraPdm) {
+        await supabase.from("configuracion").delete().eq("clave", "producto_del_mes_imagen");
+      }
+      onDeleted(producto.id, eraPdm);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al eliminar.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#111827", borderRadius: 16, maxWidth: 320, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.55)", padding: "20px 18px 18px" }}>
+        <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.9)", marginBottom: 8 }}>
+          ¿Eliminar &ldquo;{producto.nombre}&rdquo;?
+        </p>
+        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: eraPdm ? 8 : 16, lineHeight: 1.5 }}>
+          Esta acción no se puede deshacer.
+        </p>
+        {eraPdm && (
+          <p style={{ fontSize: 11, color: "#f97316", background: "rgba(249,115,22,0.08)", borderRadius: 8, padding: "7px 10px", marginBottom: 14 }}>
+            Este producto está configurado como Producto del mes. Al eliminarlo, el banner quedará vacío.
+          </p>
+        )}
+        {error && (
+          <p style={{ fontSize: 12, color: "#ef4444", background: "rgba(239,68,68,0.08)", borderRadius: 8, padding: "7px 10px", marginBottom: 12 }}>{error}</p>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)", borderRadius: 8, padding: "9px 0", fontSize: 13, cursor: "pointer" }}>
+            Cancelar
+          </button>
+          <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, background: "#ef4444", border: "none", color: "#fff", borderRadius: 8, padding: "9px 0", fontSize: 13, fontWeight: 600, cursor: deleting ? "default" : "pointer", opacity: deleting ? 0.7 : 1 }}>
+            {deleting ? "Eliminando..." : "Eliminar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tab principal ────────────────────────────────────────────────────────────
 
 export default function ProductosTab() {
-  const [subTab,      setSubTab]      = useState<"platillos" | "extras">("platillos");
-  const [productos,   setProductos]   = useState<Producto[]>([]);
-  const [pdmUrl,      setPdmUrl]      = useState<string | null>(null);
-  const [query,       setQuery]       = useState("");
-  const [loading,     setLoading]     = useState(true);
-  const [editTarget,  setEditTarget]  = useState<Producto | null | undefined>(undefined);
+  const [subTab,       setSubTab]       = useState<"platillos" | "extras">("platillos");
+  const [productos,    setProductos]    = useState<Producto[]>([]);
+  const [categorias,   setCategorias]   = useState<Categoria[]>([]);
+  const [pdmUrl,       setPdmUrl]       = useState<string | null>(null);
+  const [query,        setQuery]        = useState("");
+  const [loading,      setLoading]      = useState(true);
+  const [editTarget,   setEditTarget]   = useState<Producto | null | undefined>(undefined);
+  const [creando,      setCreando]      = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Producto | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
     const extrasCatId = await getExtrasCatId();
-    const [{ data: prods, error: prodsErr }, { data: pdm }] = await Promise.all([
-      // select("*") para no fallar si columnas nuevas (disponible, extras_permitidos)
-      // todavía no existen en la tabla de Supabase
+
+    const [{ data: prods, error: prodsErr }, { data: cats }, { data: pdm }] = await Promise.all([
       supabase.from("productos").select("*").order("nombre"),
+      supabase.from("categorias").select("id, nombre").order("nombre"),
       supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_imagen").maybeSingle(),
     ]);
 
-    if (prodsErr) console.error("ProductosTab: error al cargar productos:", prodsErr.message);
+    if (prodsErr) console.error("ProductosTab:", prodsErr.message);
 
-    // Excluir extras de la lista de platillos
     type RawProd = Producto & { categoria_id?: string | null; [key: string]: unknown };
     const todos = (prods ?? []) as RawProd[];
     const platillos: Producto[] = todos
       .filter((p) => !extrasCatId || p.categoria_id !== extrasCatId)
-      .map(({ id, nombre, precio, imagen_url, extras_permitidos, disponible }) => ({
-        id:               id as string,
-        nombre:           nombre as string,
-        precio:           precio as number,
-        imagen_url:       (imagen_url as string | null) ?? null,
+      .map(({ id, nombre, precio, imagen_url, extras_permitidos, disponible, categoria_id }) => ({
+        id:                id as string,
+        nombre:            nombre as string,
+        precio:            precio as number,
+        imagen_url:        (imagen_url as string | null) ?? null,
         extras_permitidos: (extras_permitidos as string[] | null) ?? null,
-        disponible:       (disponible as boolean | undefined) ?? undefined,
+        disponible:        (disponible as boolean | undefined) ?? undefined,
+        categoria_id:      (categoria_id as string | undefined) ?? undefined,
       }));
 
+    const catsNoExtras = ((cats ?? []) as Categoria[]).filter((c) => c.id !== extrasCatId);
+
     setProductos(platillos);
+    setCategorias(catsNoExtras);
     if (pdm?.valor) setPdmUrl(pdm.valor as string);
     setLoading(false);
   }, []);
@@ -537,27 +750,48 @@ export default function ProductosTab() {
 
   const filtrados = productos.filter((p) => p.nombre.toLowerCase().includes(query.toLowerCase()));
 
+  // Agrupar por categoría; ocultar grupos vacíos al buscar
+  const grupos = categorias
+    .map((cat) => ({ cat, prods: filtrados.filter((p) => p.categoria_id === cat.id) }))
+    .filter((g) => g.prods.length > 0);
+
+  // Productos sin categoría conocida (edge case)
+  const sinGrupo = filtrados.filter((p) => !categorias.some((c) => c.id === p.categoria_id));
+
   const handleSaved = (payload: SavedPayload) => {
     if (payload.pdmUrl !== undefined) setPdmUrl(payload.pdmUrl);
     if (payload.id) {
       setProductos((prev) =>
         prev.map((p) =>
           p.id === payload.id
-            ? { ...p, ...(payload.nombre !== undefined ? { nombre: payload.nombre } : {}), ...(payload.precio !== undefined ? { precio: payload.precio } : {}), ...(payload.imagen_url !== undefined ? { imagen_url: payload.imagen_url } : {}) }
+            ? {
+                ...p,
+                ...(payload.nombre     !== undefined ? { nombre:     payload.nombre     } : {}),
+                ...(payload.precio     !== undefined ? { precio:     payload.precio     } : {}),
+                ...(payload.imagen_url !== undefined ? { imagen_url: payload.imagen_url } : {}),
+              }
             : p
         )
       );
     }
   };
 
+  const handleCreated = (prod: Producto) => {
+    setProductos((prev) => [...prev, prod].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+  };
+
+  const handleDeleted = (id: string, eraPdm: boolean) => {
+    setProductos((prev) => prev.filter((p) => p.id !== id));
+    if (eraPdm) setPdmUrl(null);
+    setDeleteTarget(null);
+  };
+
   const toggleDisponible = async (p: Producto, e: React.MouseEvent) => {
     e.stopPropagation();
     const next = !(p.disponible ?? true);
-    // Actualización optimista
     setProductos((prev) => prev.map((prod) => prod.id === p.id ? { ...prod, disponible: next } : prod));
     const { error } = await supabase.from("productos").update({ disponible: next }).eq("id", p.id);
     if (error) {
-      // Revertir si falla
       setProductos((prev) => prev.map((prod) => prod.id === p.id ? { ...prod, disponible: !next } : prod));
     }
   };
@@ -583,12 +817,67 @@ export default function ProductosTab() {
     borderBottom: "1px solid rgba(0,0,0,0.06)",
   };
 
+  const renderRow = (p: Producto) => {
+    const disponible = p.disponible ?? true;
+    return (
+      <div key={p.id} style={rowBase} onClick={() => setEditTarget(p)}>
+        <div style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", background: "rgba(249,115,22,0.07)", flexShrink: 0 }}>
+          {p.imagen_url && (
+            <img
+              src={p.imagen_url}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: disponible ? "none" : "grayscale(1)", opacity: disponible ? 1 : 0.5 }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          )}
+        </div>
+        <span style={{ flex: 1, fontSize: 12, color: disponible ? "#374151" : "#9ca3af" }}>{p.nombre}</span>
+        <span style={{ fontSize: 12, fontWeight: 500, color: "#f97316", opacity: disponible ? 1 : 0.4 }}>
+          ₡{Number(p.precio).toLocaleString("es-CR")}
+        </span>
+        {/* Toggle disponible */}
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }} onClick={(e) => toggleDisponible(p, e)}>
+          <span style={{ fontSize: 9, fontWeight: 500, color: disponible ? "#22c55e" : "#ef4444" }}>
+            {disponible ? "Disponible" : "Agotado"}
+          </span>
+          <div style={{ width: 32, height: 18, borderRadius: 10, background: disponible ? "#22c55e" : "#d1d5db", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
+            <div style={{ position: "absolute", top: 2, left: disponible ? 14 : 2, width: 14, height: 14, borderRadius: "50%", background: "white", transition: "left 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+          </div>
+        </div>
+        {/* Editar */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setEditTarget(p); }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: 4, borderRadius: 4, flexShrink: 0 }}
+          title="Editar"
+        >
+          <Pencil size={13} />
+        </button>
+        {/* Eliminar */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setDeleteTarget(p); }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: 4, borderRadius: 4, flexShrink: 0 }}
+          title="Eliminar"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div style={{ background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 16, padding: 20 }}>
 
-      {/* Modal de platillo */}
+      {/* Modales */}
       {editTarget !== undefined && (
         <EditModal producto={editTarget} pdmUrl={pdmUrl} onClose={() => setEditTarget(undefined)} onSaved={handleSaved} />
+      )}
+      {creando && (
+        <CreateModal categorias={categorias} onClose={() => setCreando(false)} onCreated={handleCreated} />
+      )}
+      {deleteTarget && (
+        <DeleteModal producto={deleteTarget} pdmUrl={pdmUrl} onClose={() => setDeleteTarget(null)} onDeleted={handleDeleted} />
       )}
 
       {/* Sub-pestañas */}
@@ -600,9 +889,24 @@ export default function ProductosTab() {
       {/* ── Sub-pestaña Platillos ─────────────────────────────────────────── */}
       {subTab === "platillos" && (
         <>
-          <div style={{ position: "relative", marginBottom: 16 }}>
-            <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", pointerEvents: "none" }} />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto..." style={{ width: "100%", boxSizing: "border-box", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10, padding: "8px 10px 8px 30px", color: "#374151", fontSize: 13, outline: "none" }} />
+          {/* Buscador + botón agregar */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <div style={{ position: "relative", flex: 1 }}>
+              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", pointerEvents: "none" }} />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar producto..."
+                style={{ width: "100%", boxSizing: "border-box", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10, padding: "8px 10px 8px 30px", color: "#374151", fontSize: 13, outline: "none" }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreando(true)}
+              style={{ background: "#f97316", border: "none", borderRadius: 8, color: "#fff", fontWeight: 600, fontSize: 11, padding: "7px 12px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              + Agregar producto
+            </button>
           </div>
 
           {loading ? (
@@ -611,36 +915,36 @@ export default function ProductosTab() {
             </div>
           ) : (
             <div>
-              {/* Producto del mes */}
-              <div style={{ ...rowBase, borderBottom: "1px solid rgba(249,115,22,0.15)", paddingBottom: 12, marginBottom: 6 }} onClick={() => setEditTarget(null)}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", background: "rgba(249,115,22,0.1)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {pdmUrl ? <img src={pdmUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <Star size={15} style={{ color: "#f97316" }} />}
-                </div>
-                <span style={{ flex: 1, fontSize: 12, color: "#111827", fontWeight: 500 }}>Producto del mes</span>
-                <span style={{ fontSize: 11, color: "#f97316", opacity: 0.7 }}>banner</span>
-              </div>
-
-              {filtrados.map((p) => {
-                const disponible = p.disponible ?? true;
-                return (
-                  <div key={p.id} style={rowBase} onClick={() => setEditTarget(p)}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", background: "rgba(249,115,22,0.07)", flexShrink: 0 }}>
-                      {p.imagen_url && <img src={p.imagen_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: disponible ? "none" : "grayscale(1)", opacity: disponible ? 1 : 0.5 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
-                    </div>
-                    <span style={{ flex: 1, fontSize: 12, color: disponible ? "#374151" : "#9ca3af" }}>{p.nombre}</span>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: "#f97316", opacity: disponible ? 1 : 0.4 }}>₡{Number(p.precio).toLocaleString("es-CR")}</span>
-                    {/* Toggle disponible */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }} onClick={(e) => toggleDisponible(p, e)}>
-                      <span style={{ fontSize: 9, fontWeight: 500, color: disponible ? "#22c55e" : "#ef4444" }}>
-                        {disponible ? "Disponible" : "Agotado"}
-                      </span>
-                      <div style={{ width: 32, height: 18, borderRadius: 10, background: disponible ? "#22c55e" : "#d1d5db", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
-                        <div style={{ position: "absolute", top: 2, left: disponible ? 14 : 2, width: 14, height: 14, borderRadius: "50%", background: "white", transition: "left 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
-                      </div>
-                    </div>
+              {/* Producto del mes — siempre arriba, fuera de categorías */}
+              {!query && (
+                <div style={{ ...rowBase, borderBottom: "1px solid rgba(249,115,22,0.15)", paddingBottom: 12, marginBottom: 6 }} onClick={() => setEditTarget(null)}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", background: "rgba(249,115,22,0.1)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {pdmUrl ? <img src={pdmUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <Star size={15} style={{ color: "#f97316" }} />}
                   </div>
-                );
-              })}
+                  <span style={{ flex: 1, fontSize: 12, color: "#111827", fontWeight: 500 }}>Producto del mes</span>
+                  <span style={{ fontSize: 11, color: "#f97316", opacity: 0.7 }}>banner</span>
+                </div>
+              )}
+
+              {/* Grupos por categoría */}
+              {grupos.map(({ cat, prods }) => (
+                <div key={cat.id}>
+                  <p style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 2px", padding: 0 }}>
+                    {cat.nombre}
+                  </p>
+                  {prods.map((p) => renderRow(p))}
+                </div>
+              ))}
+
+              {/* Productos sin categoría reconocida */}
+              {sinGrupo.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 2px", padding: 0 }}>
+                    Otros
+                  </p>
+                  {sinGrupo.map((p) => renderRow(p))}
+                </div>
+              )}
 
               {filtrados.length === 0 && query && (
                 <p style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: "20px 0" }}>
