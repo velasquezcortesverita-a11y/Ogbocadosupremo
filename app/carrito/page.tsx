@@ -18,6 +18,7 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react";
+import { calcularEstado, type EstadoHorario } from "@/lib/horario";
 
 // ─── Constantes del negocio ───────────────────────────────────────────────────
 const SINPE_NUMBER = "XXXX-XXXX"; // Ej. 8888-8888
@@ -50,6 +51,7 @@ export default function CarritoPage() {
     items:              CartItem[];
   } | null>(null);
   const [numeroPedidoCreado, setNumeroPedidoCreado] = useState<number | null>(null);
+  const [estadoHorario, setEstadoHorario] = useState<EstadoHorario>(() => calcularEstado());
   const [comprobanteFile, setComprobanteFile]         = useState<File | null>(null);
   const [comprobantePreview, setComprobantePreview]   = useState<string | null>(null);
   const [subiendoComprobante, setSubiendoComprobante] = useState(false);
@@ -75,6 +77,12 @@ export default function CarritoPage() {
     }
     clearPrefill();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresca el estado del horario cada minuto (igual que HorarioBadge)
+  useEffect(() => {
+    const id = setInterval(() => setEstadoHorario(calcularEstado()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Bloquea el scroll mientras cualquier modal de confirmación está abierto
   useEffect(() => {
@@ -666,8 +674,20 @@ export default function CarritoPage() {
                 </div>
               </div>
 
-              {/* Right: Form */}
+              {/* Right: Form / Aviso cerrado */}
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 lg:sticky lg:top-24">
+                {!estadoHorario.abierto ? (
+                  <div style={{ textAlign: "center", padding: "24px 8px 16px" }}>
+                    <p style={{ fontSize: 28, lineHeight: 1, marginBottom: 14 }}>🌙</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary, #111827)", marginBottom: 8 }}>
+                      Estamos cerrados ahora
+                    </p>
+                    <p style={{ fontSize: 12, color: "var(--color-text-secondary, #6b7280)", lineHeight: 1.6, maxWidth: 240, margin: "0 auto" }}>
+                      {estadoHorario.mensaje.replace(/^Cerrado · /, "")} — guardá tu pedido y volvé entonces
+                    </p>
+                  </div>
+                ) : (
+                  <>
                 <h2 className="text-lg font-bold text-gray-900 mb-5">
                   Datos de tu pedido
                 </h2>
@@ -788,6 +808,8 @@ export default function CarritoPage() {
                     </button>
                   </div>
                 </form>
+                  </>
+                )}
               </div>
             </div>
           )}
