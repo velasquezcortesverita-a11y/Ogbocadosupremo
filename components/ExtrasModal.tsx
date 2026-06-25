@@ -18,8 +18,8 @@ type Props = {
 export default function ExtrasModal({ productoId, itemNombre, currentExtras, onSave, onClose }: Props) {
   const [disponibles, setDisponibles] = useState<ExtraDB[]>([]);
   const [loading,     setLoading]     = useState(true);
-  const [selected,    setSelected]    = useState<Set<string>>(
-    () => new Set(currentExtras.map((e) => e.nombre))
+  const [cantidades,  setCantidades]  = useState<Map<string, number>>(
+    () => new Map(currentExtras.map((e) => [e.nombre, e.cantidad ?? 1]))
   );
 
   useEffect(() => {
@@ -68,18 +68,21 @@ export default function ExtrasModal({ productoId, itemNombre, currentExtras, onS
     })();
   }, [productoId]);
 
-  const toggle = (nombre: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(nombre) ? next.delete(nombre) : next.add(nombre);
+  const cambiarCantidad = (nombre: string, delta: number) => {
+    setCantidades((prev) => {
+      const next = new Map(prev);
+      const cur  = next.get(nombre) ?? 0;
+      const val  = Math.max(0, Math.min(10, cur + delta));
+      if (val === 0) next.delete(nombre);
+      else next.set(nombre, val);
       return next;
     });
   };
 
   const guardar = () => {
     const extras: Extra[] = disponibles
-      .filter((e) => selected.has(e.nombre))
-      .map((e) => ({ nombre: e.nombre, precio: e.precio }));
+      .filter((e) => (cantidades.get(e.nombre) ?? 0) > 0)
+      .map((e)   => ({ nombre: e.nombre, precio: e.precio, cantidad: cantidades.get(e.nombre)! }));
     onSave(extras);
     onClose();
   };
@@ -134,40 +137,83 @@ export default function ExtrasModal({ productoId, itemNombre, currentExtras, onS
             </p>
           ) : (
             disponibles.map((extra) => {
-              const checked = selected.has(extra.nombre);
+              const qty = cantidades.get(extra.nombre) ?? 0;
               return (
                 <div
                   key={extra.id}
-                  onClick={() => toggle(extra.nombre)}
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    padding: "7px 16px",
+                    padding: "8px 16px",
                     borderBottom: "0.5px solid #f3f4f6",
-                    cursor: "pointer",
                   }}
                 >
-                  <span style={{ fontSize: 11, color: "#111827" }}>{extra.nombre}</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 10, color: "#f97316", fontWeight: 500 }}>
-                      +₡{extra.precio.toLocaleString("es-CR")}
+                  {/* Nombre + precio unitario */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <span style={{ fontSize: 11, color: "var(--color-text-primary, #111827)", fontWeight: 500 }}>
+                      {extra.nombre}
                     </span>
-                    <div style={{
-                      width: 18, height: 18,
-                      borderRadius: 5,
-                      border: `1.5px solid ${checked ? "#f97316" : "#d1d5db"}`,
-                      background: checked ? "#f97316" : "#fff",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      transition: "all 0.12s",
-                      flexShrink: 0,
+                    <span style={{ fontSize: 10, color: "#f97316", fontWeight: 500 }}>
+                      ₡{extra.precio.toLocaleString("es-CR")} c/u
+                    </span>
+                  </div>
+
+                  {/* Stepper */}
+                  <div style={{
+                    background: "var(--color-background-secondary, #f9fafb)",
+                    borderRadius: 16,
+                    padding: "4px 6px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                  }}>
+                    {/* Botón − */}
+                    <button
+                      type="button"
+                      onClick={() => cambiarCantidad(extra.nombre, -1)}
+                      style={{
+                        width: 18, height: 18, borderRadius: "50%",
+                        background: "var(--color-background-primary, #fff)",
+                        border: "0.5px solid var(--color-border-tertiary, #d1d5db)",
+                        color: "var(--color-text-secondary, #6b7280)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: qty === 0 ? "not-allowed" : "pointer",
+                        opacity: qty === 0 ? 0.4 : 1,
+                        padding: 0, flexShrink: 0, fontSize: 14, lineHeight: 1,
+                      }}
+                    >
+                      −
+                    </button>
+
+                    {/* Cantidad */}
+                    <span style={{
+                      fontSize: 11,
+                      color: "var(--color-text-primary, #111827)",
+                      fontWeight: 500,
+                      width: 14,
+                      textAlign: "center",
+                      display: "inline-block",
                     }}>
-                      {checked && (
-                        <svg viewBox="0 0 10 8" width="10" height="8" fill="none">
-                          <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </div>
+                      {qty}
+                    </span>
+
+                    {/* Botón + */}
+                    <button
+                      type="button"
+                      onClick={() => cambiarCantidad(extra.nombre, 1)}
+                      style={{
+                        width: 18, height: 18, borderRadius: "50%",
+                        background: qty > 0 ? "#f97316" : "var(--color-background-primary, #fff)",
+                        border: qty > 0 ? "none" : "0.5px solid var(--color-border-tertiary, #d1d5db)",
+                        color: qty > 0 ? "#fff" : "var(--color-text-secondary, #6b7280)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer",
+                        padding: 0, flexShrink: 0, fontSize: 14, lineHeight: 1, fontWeight: 600,
+                      }}
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
               );

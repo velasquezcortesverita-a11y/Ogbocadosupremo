@@ -14,7 +14,7 @@ export type PedidoItem = {
   nombre_producto: string;
   cantidad: number;
   precio: number;
-  extras?: { nombre: string; precio: number }[];
+  extras?: { nombre: string; precio: number; cantidad?: number }[];
 };
 
 export type Pedido = {

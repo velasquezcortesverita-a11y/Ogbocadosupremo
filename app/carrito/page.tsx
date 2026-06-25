@@ -470,7 +470,7 @@ export default function CarritoPage() {
 
                 {items.map((item) => {
                   const itemExtras  = item.extras ?? [];
-                  const extrasSum   = itemExtras.reduce((s, e) => s + e.precio, 0);
+                  const extrasSum   = itemExtras.reduce((s, e) => s + e.precio * (e.cantidad ?? 1), 0);
                   const precioTotal = item.precio + extrasSum;
 
                   return (
@@ -536,21 +536,24 @@ export default function CarritoPage() {
                       {/* Tags de extras seleccionados */}
                       {itemExtras.length > 0 && (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 10 }}>
-                          {itemExtras.map((extra) => (
-                            <span
-                              key={extra.nombre}
-                              style={{
-                                background: "#f9fafb",
-                                border: "1px solid #e5e7eb",
-                                borderRadius: 10,
-                                padding: "3px 8px",
-                                fontSize: 9,
-                                color: "#6b7280",
-                              }}
-                            >
-                              {extra.nombre} ₡{extra.precio.toLocaleString("es-CR")}
-                            </span>
-                          ))}
+                          {itemExtras.map((extra) => {
+                            const qty = extra.cantidad ?? 1;
+                            return (
+                              <span
+                                key={extra.nombre}
+                                style={{
+                                  background: "#f9fafb",
+                                  border: "1px solid #e5e7eb",
+                                  borderRadius: 10,
+                                  padding: "3px 8px",
+                                  fontSize: 9,
+                                  color: "#6b7280",
+                                }}
+                              >
+                                {extra.nombre}{qty > 1 ? ` x${qty}` : ""} ₡{extra.precio.toLocaleString("es-CR")}
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
 

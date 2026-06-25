@@ -474,7 +474,7 @@ export default function PedidoCard({
                         key={extra.nombre}
                         style={{ paddingLeft: 14, color: "#f97316", fontSize: 10, lineHeight: 1.6 }}
                       >
-                        + {extra.nombre}
+                        + {extra.nombre}{(extra.cantidad ?? 1) > 1 ? ` x${extra.cantidad}` : ""}
                       </li>
                     ))}
                   </ul>

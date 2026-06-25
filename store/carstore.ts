@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type Extra = { nombre: string; precio: number };
+export type Extra = { nombre: string; precio: number; cantidad?: number };
 
 export type CartItem = {
   id: string;
@@ -13,7 +13,7 @@ export type CartItem = {
 };
 
 function extrasSum(item: CartItem): number {
-  return (item.extras ?? []).reduce((s, e) => s + e.precio, 0);
+  return (item.extras ?? []).reduce((s, e) => s + e.precio * (e.cantidad ?? 1), 0);
 }
 
 type CartStore = {
