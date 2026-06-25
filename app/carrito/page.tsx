@@ -51,11 +51,15 @@ function CarritoContent() {
     items:              CartItem[];
   } | null>(null);
   const [numeroPedidoCreado, setNumeroPedidoCreado] = useState<number | null>(null);
-  // TEST-ONLY: ?forzar_cerrado=true simula estado cerrado sin importar la hora real
+  // Feature flag: NEXT_PUBLIC_BLOQUEAR_PEDIDOS_CERRADO="true" activa el bloqueo
+  const bloqueoActivo = process.env.NEXT_PUBLIC_BLOQUEAR_PEDIDOS_CERRADO === "true";
+  // TEST-ONLY: ?forzar_cerrado=true simula estado cerrado (solo tiene efecto si bloqueoActivo=true)
   const searchParams = useSearchParams();
-  const forzarCerrado = searchParams.get("forzar_cerrado") === "true";
+  const forzarCerrado = bloqueoActivo && searchParams.get("forzar_cerrado") === "true";
   const [estadoHorario, setEstadoHorario] = useState<EstadoHorario>(() => calcularEstado());
-  const estadoEfectivo: EstadoHorario = forzarCerrado
+  const estadoEfectivo: EstadoHorario = !bloqueoActivo
+    ? { abierto: true }
+    : forzarCerrado
     ? { abierto: false, mensaje: "Cerrado · Abrimos mañana a las 11:00 am" }
     : estadoHorario;
   const [comprobanteFile, setComprobanteFile]         = useState<File | null>(null);
