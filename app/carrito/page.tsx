@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -23,7 +23,7 @@ import { calcularEstado, type EstadoHorario } from "@/lib/horario";
 // ─── Constantes del negocio ───────────────────────────────────────────────────
 const SINPE_NUMBER = "XXXX-XXXX"; // Ej. 8888-8888
 
-export default function CarritoPage() {
+function CarritoContent() {
   const items           = useCartStore((state) => state.items);
   const total           = useCartStore((state) => state.total);
   const limpiarCarrito  = useCartStore((state) => state.limpiarCarrito);
@@ -822,5 +822,13 @@ export default function CarritoPage() {
         </div>
       </main>
     </>
+  );
+}
+
+export default function CarritoPage() {
+  return (
+    <Suspense>
+      <CarritoContent />
+    </Suspense>
   );
 }
