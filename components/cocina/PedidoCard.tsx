@@ -5,6 +5,46 @@ import { supabase } from "@/lib/supabase";
 import { User, Phone, CreditCard, Package, Flame, Bike, MapPin } from "lucide-react";
 import type { Pedido, PedidoItem } from "@/types/pedido";
 
+// ─── Visor de imagen ampliada ─────────────────────────────────────────────────
+
+function ZoomedImageViewer({ url, onClose }: { url: string; onClose: () => void }) {
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 80,
+        background: "rgba(0,0,0,0.85)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <button
+        onClick={onClose}
+        style={{
+          position: "absolute", top: 16, right: 16,
+          background: "rgba(255,255,255,0.15)", border: "none",
+          borderRadius: "50%", width: 32, height: 32,
+          cursor: "pointer", color: "#fff", fontSize: 18, lineHeight: "32px", textAlign: "center",
+        }}
+      >
+        ✕
+      </button>
+      <img
+        src={url}
+        alt="Comprobante SINPE"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8, objectFit: "contain", display: "block" }}
+        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+      />
+    </div>
+  );
+}
+
 // ─── Modal Ver Sinpe ──────────────────────────────────────────────────────────
 
 function SinpeModal({
@@ -20,6 +60,8 @@ function SinpeModal({
   onConfirmar: () => void;
   onRechazar: () => void;
 }) {
+  const [zoomed, setZoomed] = useState(false);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
@@ -27,104 +69,124 @@ function SinpeModal({
   }, [onClose]);
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 70,
-        background: "rgba(0,0,0,0.5)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 16,
-      }}
-    >
+    <>
+      {zoomed && (
+        <ZoomedImageViewer
+          url={pedido.comprobante_url!}
+          onClose={() => setZoomed(false)}
+        />
+      )}
       <div
-        onClick={(e) => e.stopPropagation()}
+        onClick={onClose}
         style={{
-          background: "#fff",
-          borderRadius: 16,
-          maxWidth: 340,
-          width: "100%",
-          overflow: "hidden",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          position: "fixed", inset: 0, zIndex: 70,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 16,
         }}
       >
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 12px 0" }}>
-          <button
-            onClick={onClose}
-            style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#9ca3af", lineHeight: 1 }}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Imagen */}
-        <div style={{ padding: "0 14px" }}>
-          <img
-            src={pedido.comprobante_url!}
-            alt="Comprobante SINPE"
-            style={{ width: "100%", height: 130, objectFit: "cover", borderRadius: 10, display: "block" }}
-            onError={(e) => {
-              const img = e.target as HTMLImageElement;
-              img.style.display = "none";
-            }}
-          />
-        </div>
-
-        {/* Info */}
-        <div style={{ padding: "12px 14px 4px" }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827" }}>
-            Pedido #{pedido.numero_pedido}
-          </p>
-          <p style={{ margin: "3px 0 0", fontSize: 14, fontWeight: 700, color: "#f97316" }}>
-            Monto: ₡{Number(pedido.total).toLocaleString("es-CR")}
-          </p>
-        </div>
-
-        {/* Acciones */}
-        {pagoEstado === null && (
-          <div style={{ display: "flex", gap: 8, padding: "12px 14px 14px" }}>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "#fff",
+            borderRadius: 16,
+            maxWidth: 340,
+            width: "100%",
+            overflow: "hidden",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 12px 0" }}>
             <button
-              onClick={() => { onConfirmar(); onClose(); }}
-              style={{
-                flex: 1,
-                background: "rgba(34,197,94,0.1)",
-                border: "1px solid rgba(34,197,94,0.2)",
-                color: "#16a34a",
-                borderRadius: 8,
-                padding: "9px 0",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              onClick={onClose}
+              style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#9ca3af", lineHeight: 1 }}
             >
-              ✓ Confirmar
-            </button>
-            <button
-              onClick={() => { onRechazar(); onClose(); }}
-              style={{
-                flex: 1,
-                background: "rgba(239,68,68,0.06)",
-                border: "1px solid rgba(239,68,68,0.15)",
-                color: "#dc2626",
-                borderRadius: 8,
-                padding: "9px 0",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              ✗ Rechazar
+              ✕
             </button>
           </div>
-        )}
 
-        {pagoEstado === "confirmado" && (
-          <p style={{ textAlign: "center", padding: "12px 14px 14px", fontSize: 13, color: "#16a34a", margin: 0, fontWeight: 500 }}>
-            ✓ Pago ya confirmado
-          </p>
-        )}
+          {/* Imagen — clicable para ampliar */}
+          <div
+            style={{ padding: "0 14px", position: "relative", cursor: "zoom-in" }}
+            onClick={(e) => { e.stopPropagation(); setZoomed(true); }}
+          >
+            <img
+              src={pedido.comprobante_url!}
+              alt="Comprobante SINPE"
+              style={{ width: "100%", height: 130, objectFit: "cover", borderRadius: 10, display: "block" }}
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = "none";
+              }}
+            />
+            <div style={{
+              position: "absolute", top: 8, right: 22,
+              background: "rgba(0,0,0,0.45)", borderRadius: 6,
+              width: 26, height: 26,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 13, pointerEvents: "none",
+            }}>
+              🔍
+            </div>
+          </div>
+
+          {/* Info */}
+          <div style={{ padding: "12px 14px 4px" }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827" }}>
+              Pedido #{pedido.numero_pedido}
+            </p>
+            <p style={{ margin: "3px 0 0", fontSize: 14, fontWeight: 700, color: "#f97316" }}>
+              Monto: ₡{Number(pedido.total).toLocaleString("es-CR")}
+            </p>
+          </div>
+
+          {/* Acciones */}
+          {pagoEstado === null && (
+            <div style={{ display: "flex", gap: 8, padding: "12px 14px 14px" }}>
+              <button
+                onClick={() => { onConfirmar(); onClose(); }}
+                style={{
+                  flex: 1,
+                  background: "rgba(34,197,94,0.1)",
+                  border: "1px solid rgba(34,197,94,0.2)",
+                  color: "#16a34a",
+                  borderRadius: 8,
+                  padding: "9px 0",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ✓ Confirmar
+              </button>
+              <button
+                onClick={() => { onRechazar(); onClose(); }}
+                style={{
+                  flex: 1,
+                  background: "rgba(239,68,68,0.06)",
+                  border: "1px solid rgba(239,68,68,0.15)",
+                  color: "#dc2626",
+                  borderRadius: 8,
+                  padding: "9px 0",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ✗ Rechazar
+              </button>
+            </div>
+          )}
+
+          {pagoEstado === "confirmado" && (
+            <p style={{ textAlign: "center", padding: "12px 14px 14px", fontSize: 13, color: "#16a34a", margin: 0, fontWeight: 500 }}>
+              ✓ Pago ya confirmado
+            </p>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -541,8 +603,8 @@ export default function PedidoCard({
           </p>
         )}
 
-        {/* Actions */}
-        <div className="flex flex-col gap-2 pt-1">
+        {/* Actions — mt-auto para anclarlos al fondo de la tarjeta */}
+        <div className="flex flex-col gap-2 pt-1 mt-auto">
           {esPendiente && (
             <button
               onClick={() => { onVerNuevo?.(); cambiarEstado("preparando"); }}
