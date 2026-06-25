@@ -24,8 +24,8 @@ type SavedPayload = {
   id?: string;
   nombre?: string;
   precio?: number;
-  imagen_url?: string;
-  pdmUrl?: string;
+  imagen_url?: string | null;
+  pdmUrl?: string | null;
 };
 
 const ALLOWED  = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -281,20 +281,22 @@ function EditModal({
 }) {
   const isPdm = producto === null;
 
-  const [nombre,   setNombre]   = useState(producto?.nombre  ?? "");
-  const [precio,   setPrecio]   = useState(producto?.precio?.toString() ?? "");
-  const [preview,  setPreview]  = useState<string | null>(null);
-  const [imgFile,  setImgFile]  = useState<File | null>(null);
-  const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-  const [exito,    setExito]    = useState(false);
+  const [nombre,             setNombre]             = useState(producto?.nombre  ?? "");
+  const [precio,             setPrecio]             = useState(producto?.precio?.toString() ?? "");
+  const [preview,            setPreview]            = useState<string | null>(null);
+  const [imgFile,            setImgFile]            = useState<File | null>(null);
+  const [imgQuitada,         setImgQuitada]         = useState(false);
+  const [confirmQuitarFoto,  setConfirmQuitarFoto]  = useState(false);
+  const [saving,             setSaving]             = useState(false);
+  const [error,              setError]              = useState<string | null>(null);
+  const [exito,              setExito]              = useState(false);
 
   const [allExtras,         setAllExtras]         = useState<Extra[]>([]);
   const [extrasPermitidos,  setExtrasPermitidos]  = useState<Set<string>>(new Set());
   const [loadingExtras,     setLoadingExtras]      = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const imagenActual = preview ?? (isPdm ? pdmUrl : producto?.imagen_url) ?? null;
+  const imagenActual = imgQuitada ? null : (preview ?? (isPdm ? pdmUrl : producto?.imagen_url) ?? null);
 
   useEffect(() => {
     const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -373,8 +375,11 @@ function EditModal({
         if (newImgUrl) {
           const { error: dbErr } = await supabase.from("configuracion").upsert({ clave: "producto_del_mes_imagen", valor: newImgUrl }, { onConflict: "clave" });
           if (dbErr) throw new Error(dbErr.message);
+        } else if (imgQuitada) {
+          const { error: dbErr } = await supabase.from("configuracion").delete().eq("clave", "producto_del_mes_imagen");
+          if (dbErr) throw new Error(dbErr.message);
         }
-        onSaved({ pdmUrl: newImgUrl });
+        onSaved({ pdmUrl: imgQuitada ? null : newImgUrl });
       } else {
         const allSelected = allExtras.length > 0 && allExtras.every((e) => extrasPermitidos.has(e.id));
         const updates: Record<string, unknown> = {
@@ -382,10 +387,12 @@ function EditModal({
           precio: Number(precio),
           extras_permitidos: allSelected ? null : Array.from(extrasPermitidos),
         };
-        if (newImgUrl) updates.imagen_url = newImgUrl;
+        if (newImgUrl)       updates.imagen_url = newImgUrl;
+        else if (imgQuitada) updates.imagen_url = null;
         const { error: dbErr } = await supabase.from("productos").update(updates).eq("id", producto!.id);
         if (dbErr) throw new Error(dbErr.message);
-        onSaved({ id: producto!.id, nombre: nombre.trim(), precio: Number(precio), ...(newImgUrl ? { imagen_url: newImgUrl } : {}) });
+        const imgResultante = newImgUrl ?? (imgQuitada ? null : undefined);
+        onSaved({ id: producto!.id, nombre: nombre.trim(), precio: Number(precio), ...(imgResultante !== undefined ? { imagen_url: imgResultante } : {}) });
       }
 
       setExito(true);
@@ -416,9 +423,44 @@ function EditModal({
                 <Loader2 size={18} className="animate-spin" style={{ color: "#fff" }} />
               </div>
             ) : (
-              <div style={{ position: "absolute", bottom: 0, right: 0, background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 10, padding: "3px 9px", borderRadius: "8px 0 10px 0" }}>Cambiar foto</div>
+              <div style={{ position: "absolute", bottom: 0, right: 0, display: "flex", alignItems: "center", gap: 6 }}>
+                {imagenActual && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setConfirmQuitarFoto(true); }}
+                    style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(239,68,68,0.18)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.3)", fontSize: 10, padding: "5px 10px", borderRadius: 8, cursor: "pointer" }}
+                  >
+                    🗑 Quitar foto
+                  </button>
+                )}
+                <div style={{ background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 10, padding: "3px 9px", borderRadius: "8px 0 10px 0" }}>Cambiar foto</div>
+              </div>
             )}
           </div>
+          {confirmQuitarFoto && (
+            <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "10px 12px", marginTop: -4 }}>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: "0 0 8px", lineHeight: 1.4 }}>
+                ¿Quitar la foto{isPdm ? " del Producto del mes" : " de este platillo"}?
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={() => setConfirmQuitarFoto(false)} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", borderRadius: 7, padding: "7px 0", fontSize: 12, cursor: "pointer" }}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImgQuitada(true);
+                    setImgFile(null);
+                    if (preview) { URL.revokeObjectURL(preview); setPreview(null); }
+                    setConfirmQuitarFoto(false);
+                  }}
+                  style={{ flex: 1, background: "#ef4444", border: "none", color: "#fff", borderRadius: 7, padding: "7px 0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                >
+                  Quitar
+                </button>
+              </div>
+            </div>
+          )}
 
           {!isPdm && (
             <div>
