@@ -134,20 +134,6 @@ function ReporteModal({
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function startOfWeekCR(): string {
-  const now    = new Date();
-  const crMs   = now.getTime() - 6 * 60 * 60 * 1000;
-  const crDate = new Date(crMs);
-  const y      = crDate.getUTCFullYear();
-  const m      = crDate.getUTCMonth();
-  const d      = crDate.getUTCDate();
-  const dow    = crDate.getUTCDay();
-  const diff   = dow === 0 ? 6 : dow - 1;
-  return new Date(Date.UTC(y, m, d - diff, 6, 0, 0)).toISOString();
-}
-
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function ResumenVentas() {
@@ -160,7 +146,6 @@ export default function ResumenVentas() {
   const [reporteData,     setReporteData]   = useState<{
     resumen: Resumen; horaInicio: string; horaCierre: string; pedidos: PedidoReporte[];
   } | null>(null);
-  const [abandonados,     setAbandonados]   = useState<number | null>(null);
 
   // ── Cargar dia_inicio desde configuracion ──
   useEffect(() => {
@@ -215,18 +200,6 @@ export default function ResumenVentas() {
     window.addEventListener("resumen-actualizar", cargar);
     return () => { clearInterval(interval); window.removeEventListener("resumen-actualizar", cargar); };
   }, [cargar, diaInicio]);
-
-  // ── Carritos abandonados esta semana ──
-  useEffect(() => {
-    (async () => {
-      const { count } = await supabase
-        .from("eventos_carrito")
-        .select("id", { count: "exact", head: true })
-        .eq("completado", false)
-        .gte("created_at", startOfWeekCR());
-      setAbandonados(count ?? 0);
-    })();
-  }, []);
 
   // ── Cerrar día ──
   const handleCerrarDia = async () => {
@@ -391,13 +364,7 @@ export default function ResumenVentas() {
           </p>
         </div>
 
-        {/* Carritos abandonados */}
-        {abandonados !== null && (
-          <p style={{ fontSize: 11, color: "#9ca3af", margin: "10px 0 0", textAlign: "right" }}>
-            Carritos abandonados esta semana:{" "}
-            <strong style={{ color: "#6b7280" }}>{abandonados}</strong>
-          </p>
-        )}
+
       </div>
     </>
   );
