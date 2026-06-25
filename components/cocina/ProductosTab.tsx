@@ -377,10 +377,11 @@ function EditModal({
         }
         onSaved({ pdmUrl: newImgUrl });
       } else {
+        const allSelected = allExtras.length > 0 && allExtras.every((e) => extrasPermitidos.has(e.id));
         const updates: Record<string, unknown> = {
           nombre: nombre.trim(),
           precio: Number(precio),
-          extras_permitidos: Array.from(extrasPermitidos),
+          extras_permitidos: allSelected ? null : Array.from(extrasPermitidos),
         };
         if (newImgUrl) updates.imagen_url = newImgUrl;
         const { error: dbErr } = await supabase.from("productos").update(updates).eq("id", producto!.id);

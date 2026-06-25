@@ -246,7 +246,7 @@ export default function ResumenVentas() {
 
       const lista = (pedidosDelDia ?? []) as PedidoReporte[];
 
-      await supabase.from("cierres_dia").insert({
+      const { error: cierreErr } = await supabase.from("cierres_dia").insert({
         fecha:            horaCierre,
         total_sinpe:      resumen.sinpe.total,
         total_efectivo:   resumen.efectivo.total,
@@ -254,9 +254,8 @@ export default function ResumenVentas() {
         total_general:    resumen.general.total,
         cantidad_pedidos: resumen.general.cantidad,
         pedidos_ids:      lista.map((p) => p.id),
-        hora_inicio:      diaInicio,
-        hora_cierre:      horaCierre,
       });
+      if (cierreErr) throw new Error(cierreErr.message);
 
       await supabase.from("configuracion")
         .upsert({ clave: "dia_inicio", valor: horaCierre }, { onConflict: "clave" });
