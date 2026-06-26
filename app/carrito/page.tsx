@@ -680,7 +680,7 @@ function CarritoContent() {
                     Total del pedido
                   </span>
                   <span className="text-2xl font-extrabold text-orange-600">
-                    ₡{total()}
+                    ₡{total().toLocaleString("es-CR")}
                   </span>
                 </div>
               </div>
@@ -796,7 +796,7 @@ function CarritoContent() {
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-sm text-gray-500">Total</span>
                       <span className="text-xl font-extrabold text-gray-900">
-                        ₡{total()}
+                        ₡{total().toLocaleString("es-CR")}
                       </span>
                     </div>
 
