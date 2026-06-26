@@ -12,7 +12,7 @@ export default async function MenuPage({
   const { data, error } = await supabase
     .from("categorias")
     .select(`
-      id, nombre, orden,
+      id, nombre, orden, tipo_visual,
       productos (
         id, nombre, precio, descripcion,
         disponible, imagen_url, tiempo_prep_min

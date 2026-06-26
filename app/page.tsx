@@ -12,6 +12,7 @@ import HorarioBadge from "@/components/HorarioBadge";
 import HorarioCerradoModal from "@/components/HorarioCerradoModal";
 import { useCartStore } from "@/store/carstore";
 import { supabase } from "@/lib/supabase";
+import { slugify } from "@/lib/slugify";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -25,16 +26,25 @@ const CHIPS: { Icon: IconComponent; label: string }[] = [
   { Icon: Tag,   label: "Sin comisión"          },
 ];
 
-const CATEGORIAS = [
-  { emoji: "🍔", label: "Hamburguesas",         href: "/menu?c=hamburguesas"        },
-  { emoji: "🍔", label: "Hamburguesas Premium", href: "/menu?c=hamburguesas-premium" },
-  { emoji: "🌮", label: "Antojitos",            href: "/menu?c=antojitos"            },
-  { emoji: "🍗", label: "Pollo",                href: "/menu?c=pollo"                },
-  { emoji: "📦", label: "Súper Combos",         href: "/menu?c=super-combos"         },
-  { emoji: "⚽", label: "Combos Futboleros",    href: "/menu?c=combos-futboleros"    },
-  { emoji: "🍗", label: "Combos de Pollo",      href: "/menu?c=combos-de-pollo"      },
-  { emoji: "🥤", label: "Bebidas",              href: "/menu?c=bebidas"              },
+type CatItem = { id: string; nombre: string; tipo_visual: string | null };
+
+const CAT_EMOJI: [string, string][] = [
+  ["hamburguesas", "🍔"],
+  ["premium",      "🍔"],
+  ["antojitos",    "🌮"],
+  ["pollo",        "🍗"],
+  ["combo",        "📦"],
+  ["futbol",       "⚽"],
+  ["bebidas",      "🥤"],
 ];
+
+function catEmoji(nombre: string): string {
+  const slug = slugify(nombre);
+  for (const [key, emoji] of CAT_EMOJI) {
+    if (slug.includes(key)) return emoji;
+  }
+  return "🍽️";
+}
 
 const PROPUESTAS: { Icon: IconComponent; titulo: string; texto: string }[] = [
   {
@@ -97,6 +107,23 @@ type PdmData = {
 export default function Home() {
   const agregarProducto = useCartStore((s) => s.agregarProducto);
   const [pdm, setPdm] = useState<PdmData | null>(null);
+  const [categorias, setCategorias] = useState<CatItem[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("categorias")
+        .select("id, nombre, tipo_visual")
+        .order("orden", { ascending: true });
+      if (data) {
+        setCategorias(
+          (data as CatItem[]).filter(
+            (c) => c.tipo_visual !== "chips_sin_imagen" && c.nombre.toLowerCase().trim() !== "extras"
+          )
+        );
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -439,15 +466,15 @@ export default function Home() {
           ¿Qué quieres hoy?
         </h2>
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 max-w-4xl mx-auto">
-          {CATEGORIAS.map((cat) => (
+          {categorias.map((cat) => (
             <Link
-              key={cat.href}
-              href={cat.href}
+              key={cat.id}
+              href={`/menu?c=${slugify(cat.nombre)}`}
               className="flex flex-col items-center gap-2 rounded-2xl py-5 px-3 transition-all text-center hover:bg-white/10"
               style={GLASS_CAT}
             >
-              <span className="text-3xl">{cat.emoji}</span>
-              <span className="text-xs font-semibold text-white/70">{cat.label}</span>
+              <span className="text-3xl">{catEmoji(cat.nombre)}</span>
+              <span className="text-xs font-semibold text-white/70">{cat.nombre}</span>
             </Link>
           ))}
         </div>

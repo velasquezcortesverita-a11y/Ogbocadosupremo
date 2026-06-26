@@ -7,6 +7,7 @@ import { Plus, ShoppingBag, Sandwich } from "lucide-react";
 import { useCartStore } from "@/store/carstore";
 import MenuHeroSlideshow from "@/components/menu/MenuHeroSlideshow";
 import RepetirPedido from "@/components/RepetirPedido";
+import { slugify } from "@/lib/slugify";
 
 export type Producto = {
   id: string;
@@ -22,18 +23,12 @@ export type Categoria = {
   id: string;
   nombre: string;
   orden: number;
+  tipo_visual: string | null;
   productos: Producto[];
 };
 
 const fmt = (n: number) => "₡" + Number(n).toLocaleString("es-CR");
 
-function slugify(nombre: string): string {
-  return nombre
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/\s+/g, "-");
-}
 
 function ExtraChip({ producto }: { producto: Producto }) {
   const agregarProducto  = useCartStore((s) => s.agregarProducto);
@@ -374,8 +369,8 @@ export default function MenuClient({
             if (cat.productos.length === 0) return null;
 
             const nombreCat = cat.nombre.toLowerCase().trim();
-            const esExtras  = nombreCat === "extras";
-            const esBebidas = nombreCat === "bebidas";
+            const esExtras  = cat.tipo_visual === "chips_sin_imagen" || (!cat.tipo_visual && nombreCat === "extras");
+            const esBebidas = cat.tipo_visual === "chips"            || (!cat.tipo_visual && nombreCat === "bebidas");
 
             return (
               <section key={cat.id} id={`cat-${cat.id}`} className="mb-10">
