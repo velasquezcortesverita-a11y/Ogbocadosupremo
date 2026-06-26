@@ -100,39 +100,22 @@ export default function Home() {
 
   useEffect(() => {
     (async () => {
-      // 1. Leer qué producto está configurado como PDM
-      const { data: configPdm } = await supabase
-        .from("configuracion")
-        .select("valor")
-        .eq("clave", "producto_del_mes")
-        .maybeSingle();
-
-      if (!configPdm?.valor) return; // Sin PDM configurado → no mostrar banner
-
-      const productId = configPdm.valor as string;
-
-      // 2. Obtener datos del producto y campos configurables del banner en paralelo
-      const [{ data: prod }, { data: imgConfig }, { data: nCfg }, { data: dCfg }, { data: pCfg }] = await Promise.all([
-        supabase
-          .from("productos")
-          .select("id, nombre, precio, descripcion, imagen_url, disponible")
-          .eq("id", productId)
-          .maybeSingle(),
-        supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_imagen").maybeSingle(),
+      const [{ data: nCfg }, { data: dCfg }, { data: pCfg }, { data: imgConfig }] = await Promise.all([
         supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_nombre").maybeSingle(),
         supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_descripcion").maybeSingle(),
         supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_precio").maybeSingle(),
+        supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_imagen").maybeSingle(),
       ]);
 
-      if (!prod) return; // Producto no encontrado en la tabla productos
+      if (!nCfg?.valor) return; // Sin nombre configurado → no mostrar banner
 
       setPdm({
-        id:          prod.id as string,
-        nombre:      (nCfg?.valor as string | null) ?? (prod.nombre as string),
-        precio:      pCfg?.valor ? Number(pCfg.valor) : (prod.precio as number),
-        descripcion: (dCfg?.valor as string | null) ?? ((prod.descripcion as string | null) ?? ""),
-        imagen:      (imgConfig?.valor as string | null) ?? (prod.imagen_url as string | null) ?? "",
-        disponible:  (prod.disponible  as boolean | null) ?? true,
+        id:          "00000000-0000-0000-0000-000000000001",
+        nombre:      nCfg.valor as string,
+        precio:      pCfg?.valor ? Number(pCfg.valor) : 0,
+        descripcion: (dCfg?.valor as string | null) ?? "",
+        imagen:      (imgConfig?.valor as string | null) ?? "",
+        disponible:  true,
       });
     })();
   }, []);

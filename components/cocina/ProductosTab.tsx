@@ -26,7 +26,7 @@ type SavedPayload = {
   precio?: number;
   imagen_url?: string | null;
   pdmUrl?: string | null;
-  pdmProductoId?: string | null;
+  pdmNombreDisplay?: string | null;
 };
 
 const ALLOWED  = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -272,15 +272,11 @@ function ExtrasSubTab() {
 function EditModal({
   producto,
   pdmUrl,
-  platillos,
-  pdmProductoId,
   onClose,
   onSaved,
 }: {
   producto: Producto | null;
   pdmUrl: string | null;
-  platillos: Producto[];
-  pdmProductoId: string | null;
   onClose: () => void;
   onSaved: (payload: SavedPayload) => void;
 }) {
@@ -288,7 +284,6 @@ function EditModal({
 
   const [nombre,             setNombre]             = useState(producto?.nombre  ?? "");
   const [precio,             setPrecio]             = useState(producto?.precio?.toString() ?? "");
-  const [pdmSelectedId,      setPdmSelectedId]      = useState<string | null>(pdmProductoId);
   const [pdmNombre,          setPdmNombre]          = useState("");
   const [pdmDescripcion,     setPdmDescripcion]     = useState("");
   const [pdmPrecio,          setPdmPrecio]          = useState("");
@@ -329,13 +324,6 @@ function EditModal({
         setPdmNombre((nCfg?.valor as string | null) ?? "");
         setPdmDescripcion((dCfg?.valor as string | null) ?? "");
         setPdmPrecio((pCfg?.valor as string | null) ?? "");
-      } else if (pdmProductoId) {
-        const { data: prod } = await supabase.from("productos").select("nombre, precio, descripcion").eq("id", pdmProductoId).maybeSingle();
-        if (prod) {
-          setPdmNombre((prod.nombre as string | null) ?? "");
-          setPdmDescripcion((prod.descripcion as string | null) ?? "");
-          setPdmPrecio(prod.precio != null ? String(prod.precio) : "");
-        }
       }
     })();
   }, [isPdm]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -404,11 +392,6 @@ function EditModal({
       }
 
       if (isPdm) {
-        // Guardar qué producto es el PDM
-        if (pdmSelectedId) {
-          const { error: dbErr } = await supabase.from("configuracion").upsert({ clave: "producto_del_mes", valor: pdmSelectedId }, { onConflict: "clave" });
-          if (dbErr) throw new Error(dbErr.message);
-        }
         // Guardar campos de display del banner
         if (pdmNombre.trim()) {
           await supabase.from("configuracion").upsert({ clave: "producto_del_mes_nombre", valor: pdmNombre.trim() }, { onConflict: "clave" });
@@ -426,7 +409,7 @@ function EditModal({
           const { error: dbErr } = await supabase.from("configuracion").delete().eq("clave", "producto_del_mes_imagen");
           if (dbErr) throw new Error(dbErr.message);
         }
-        onSaved({ pdmUrl: imgQuitada ? null : newImgUrl, pdmProductoId: pdmSelectedId });
+        onSaved({ pdmUrl: imgQuitada ? null : newImgUrl, pdmNombreDisplay: pdmNombre.trim() || null });
       } else {
         const allSelected = allExtras.length > 0 && allExtras.every((e) => extrasPermitidos.has(e.id));
         const updates: Record<string, unknown> = {
@@ -511,24 +494,7 @@ function EditModal({
 
           {isPdm && (
             <div>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Platillo del mes</label>
-              <select
-                value={pdmSelectedId ?? ""}
-                onChange={(e) => setPdmSelectedId(e.target.value || null)}
-                style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 10px", color: pdmSelectedId ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.35)", fontSize: 13, outline: "none", appearance: "none" as React.CSSProperties["appearance"] }}
-              >
-                <option value="" style={{ background: "#111827" }}>— Sin seleccionar —</option>
-                {platillos.map((p) => (
-                  <option key={p.id} value={p.id} style={{ background: "#111827" }}>
-                    {p.nombre} — ₡{Number(p.precio).toLocaleString("es-CR")}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {isPdm && (
-            <div>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Nombre del banner</label>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Nombre</label>
               <input
                 value={pdmNombre}
                 onChange={(e) => setPdmNombre(e.target.value)}
@@ -776,18 +742,15 @@ function CreateModal({
 
 function DeleteModal({
   producto,
-  pdmProductoId,
   onClose,
   onDeleted,
 }: {
   producto: Producto;
-  pdmProductoId: string | null;
   onClose: () => void;
-  onDeleted: (id: string, eraPdm: boolean) => void;
+  onDeleted: (id: string) => void;
 }) {
   const [deleting, setDeleting] = useState(false);
   const [error,    setError]    = useState<string | null>(null);
-  const eraPdm = producto.id === pdmProductoId;
 
   useEffect(() => {
     const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -800,16 +763,7 @@ function DeleteModal({
     try {
       const { error: dbErr } = await supabase.from("productos").delete().eq("id", producto.id);
       if (dbErr) throw new Error(dbErr.message);
-      if (eraPdm) {
-        await Promise.all([
-          supabase.from("configuracion").delete().eq("clave", "producto_del_mes"),
-          supabase.from("configuracion").delete().eq("clave", "producto_del_mes_imagen"),
-          supabase.from("configuracion").delete().eq("clave", "producto_del_mes_nombre"),
-          supabase.from("configuracion").delete().eq("clave", "producto_del_mes_descripcion"),
-          supabase.from("configuracion").delete().eq("clave", "producto_del_mes_precio"),
-        ]);
-      }
-      onDeleted(producto.id, eraPdm);
+      onDeleted(producto.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al eliminar.");
     } finally {
@@ -823,14 +777,9 @@ function DeleteModal({
         <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.9)", marginBottom: 8 }}>
           ¿Eliminar &ldquo;{producto.nombre}&rdquo;?
         </p>
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: eraPdm ? 8 : 16, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 16, lineHeight: 1.5 }}>
           Esta acción no se puede deshacer.
         </p>
-        {eraPdm && (
-          <p style={{ fontSize: 11, color: "#f97316", background: "rgba(249,115,22,0.08)", borderRadius: 8, padding: "7px 10px", marginBottom: 14 }}>
-            Este producto está configurado como Producto del mes. Al eliminarlo, el banner quedará vacío.
-          </p>
-        )}
         {error && (
           <p style={{ fontSize: 12, color: "#ef4444", background: "rgba(239,68,68,0.08)", borderRadius: 8, padding: "7px 10px", marginBottom: 12 }}>{error}</p>
         )}
@@ -854,7 +803,7 @@ export default function ProductosTab() {
   const [productos,       setProductos]       = useState<Producto[]>([]);
   const [categorias,      setCategorias]      = useState<Categoria[]>([]);
   const [pdmUrl,          setPdmUrl]          = useState<string | null>(null);
-  const [pdmProductoId,   setPdmProductoId]   = useState<string | null>(null);
+  const [pdmNombre,       setPdmNombre]       = useState<string | null>(null);
   const [query,           setQuery]           = useState("");
   const [loading,         setLoading]         = useState(true);
   const [editTarget,      setEditTarget]      = useState<Producto | null | undefined>(undefined);
@@ -865,11 +814,11 @@ export default function ProductosTab() {
     setLoading(true);
     const extrasCatId = await getExtrasCatId();
 
-    const [{ data: prods, error: prodsErr }, { data: cats }, { data: pdm }, { data: pdmCfg }] = await Promise.all([
+    const [{ data: prods, error: prodsErr }, { data: cats }, { data: pdm }, { data: pdmNombreCfg }] = await Promise.all([
       supabase.from("productos").select("*").order("nombre"),
       supabase.from("categorias").select("id, nombre").order("nombre"),
       supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_imagen").maybeSingle(),
-      supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes").maybeSingle(),
+      supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_nombre").maybeSingle(),
     ]);
 
     if (prodsErr) console.error("ProductosTab:", prodsErr.message);
@@ -892,8 +841,8 @@ export default function ProductosTab() {
 
     setProductos(platillos);
     setCategorias(catsNoExtras);
-    if (pdm?.valor)    setPdmUrl(pdm.valor as string);
-    if (pdmCfg?.valor) setPdmProductoId(pdmCfg.valor as string);
+    if (pdm?.valor)          setPdmUrl(pdm.valor as string);
+    if (pdmNombreCfg?.valor) setPdmNombre(pdmNombreCfg.valor as string);
     setLoading(false);
   }, []);
 
@@ -910,8 +859,8 @@ export default function ProductosTab() {
   const sinGrupo = filtrados.filter((p) => !categorias.some((c) => c.id === p.categoria_id));
 
   const handleSaved = (payload: SavedPayload) => {
-    if (payload.pdmUrl        !== undefined) setPdmUrl(payload.pdmUrl ?? null);
-    if (payload.pdmProductoId !== undefined) setPdmProductoId(payload.pdmProductoId ?? null);
+    if (payload.pdmUrl            !== undefined) setPdmUrl(payload.pdmUrl ?? null);
+    if (payload.pdmNombreDisplay  !== undefined) setPdmNombre(payload.pdmNombreDisplay ?? null);
     if (payload.id) {
       setProductos((prev) =>
         prev.map((p) =>
@@ -932,9 +881,8 @@ export default function ProductosTab() {
     setProductos((prev) => [...prev, prod].sort((a, b) => a.nombre.localeCompare(b.nombre)));
   };
 
-  const handleDeleted = (id: string, eraPdm: boolean) => {
+  const handleDeleted = (id: string) => {
     setProductos((prev) => prev.filter((p) => p.id !== id));
-    if (eraPdm) { setPdmUrl(null); setPdmProductoId(null); }
     setDeleteTarget(null);
   };
 
@@ -1026,8 +974,6 @@ export default function ProductosTab() {
         <EditModal
           producto={editTarget}
           pdmUrl={pdmUrl}
-          platillos={productos}
-          pdmProductoId={pdmProductoId}
           onClose={() => setEditTarget(undefined)}
           onSaved={handleSaved}
         />
@@ -1038,7 +984,6 @@ export default function ProductosTab() {
       {deleteTarget && (
         <DeleteModal
           producto={deleteTarget}
-          pdmProductoId={pdmProductoId}
           onClose={() => setDeleteTarget(null)}
           onDeleted={handleDeleted}
         />
@@ -1086,8 +1031,8 @@ export default function ProductosTab() {
                     {pdmUrl ? <img src={pdmUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <Star size={15} style={{ color: "#f97316" }} />}
                   </div>
                   <span style={{ flex: 1, fontSize: 12, color: "#111827", fontWeight: 500 }}>Producto del mes</span>
-                  <span style={{ fontSize: 11, color: pdmProductoId ? "#9ca3af" : "#f97316", opacity: pdmProductoId ? 1 : 0.7 }}>
-                    {pdmProductoId ? (productos.find((p) => p.id === pdmProductoId)?.nombre ?? "configurado") : "configurar"}
+                  <span style={{ fontSize: 11, color: pdmNombre ? "#9ca3af" : "#f97316", opacity: pdmNombre ? 1 : 0.7 }}>
+                    {pdmNombre ?? "configurar"}
                   </span>
                 </div>
               )}
