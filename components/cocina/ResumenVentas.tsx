@@ -221,6 +221,8 @@ export default function ResumenVentas() {
 
       const { error: cierreErr } = await supabase.from("cierres_dia").insert({
         fecha:            horaCierre,
+        hora_inicio:      diaInicio,
+        hora_cierre:      horaCierre,
         total_sinpe:      resumen.sinpe.total,
         total_efectivo:   resumen.efectivo.total,
         total_tarjeta:    0,

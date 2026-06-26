@@ -82,41 +82,60 @@ const ICON_BG: React.CSSProperties = {
 };
 
 // ─── Producto del mes ─────────────────────────────────────────────────────────
-// Actualizar `id` con el UUID real del producto en Supabase → tabla productos
-const PRODUCTO_DEL_MES = {
-  id:          "00000000-0000-0000-0000-000000000000",
-  nombre:      "Bocado Supremo",
-  descripcion: "Doble carne, queso fundido y salsa especial de la casa",
-  precio:      5500,
-  imagen:      "",
+
+type PdmData = {
+  id:          string;
+  nombre:      string;
+  precio:      number;
+  descripcion: string;
+  imagen:      string;
+  disponible:  boolean;
 };
 
 // ─── Página ──────────────────────────────────────────────────────────────────
 
 export default function Home() {
   const agregarProducto = useCartStore((s) => s.agregarProducto);
-  const [imagenPDM,     setImagenPDM]     = useState<string>("");
-  const [pdmDisponible, setPdmDisponible] = useState<boolean>(true);
+  const [pdm, setPdm] = useState<PdmData | null>(null);
 
   useEffect(() => {
-    supabase
-      .from("configuracion")
-      .select("valor")
-      .eq("clave", "producto_del_mes_imagen")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.valor) setImagenPDM(data.valor);
-      });
+    (async () => {
+      // 1. Leer qué producto está configurado como PDM
+      const { data: configPdm } = await supabase
+        .from("configuracion")
+        .select("valor")
+        .eq("clave", "producto_del_mes")
+        .maybeSingle();
 
-    // Verificar si el PDM está marcado como agotado
-    supabase
-      .from("productos")
-      .select("disponible")
-      .eq("id", PRODUCTO_DEL_MES.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data !== null) setPdmDisponible(data.disponible ?? true);
+      if (!configPdm?.valor) return; // Sin PDM configurado → no mostrar banner
+
+      const productId = configPdm.valor as string;
+
+      // 2. Obtener datos del producto e imagen personalizada en paralelo
+      const [{ data: prod }, { data: imgConfig }] = await Promise.all([
+        supabase
+          .from("productos")
+          .select("id, nombre, precio, descripcion, imagen_url, disponible")
+          .eq("id", productId)
+          .maybeSingle(),
+        supabase
+          .from("configuracion")
+          .select("valor")
+          .eq("clave", "producto_del_mes_imagen")
+          .maybeSingle(),
+      ]);
+
+      if (!prod) return; // Producto no encontrado en la tabla productos
+
+      setPdm({
+        id:          prod.id          as string,
+        nombre:      prod.nombre      as string,
+        precio:      prod.precio      as number,
+        descripcion: (prod.descripcion as string | null) ?? "",
+        imagen:      (imgConfig?.valor as string | null) ?? (prod.imagen_url as string | null) ?? "",
+        disponible:  (prod.disponible  as boolean | null) ?? true,
       });
+    })();
   }, []);
 
   return (
@@ -253,6 +272,7 @@ export default function Home() {
       </section>
 
       {/* ── PRODUCTO DEL MES ─────────────────────────────────────────────── */}
+      {pdm && (
       <section className="px-4 pb-2 w-full">
         <div className="max-w-4xl mx-auto">
           <div
@@ -322,40 +342,42 @@ export default function Home() {
                 style={{
                   fontSize: "22px",
                   fontWeight: 500,
-                  color: pdmDisponible ? "white" : "rgba(255,255,255,0.35)",
+                  color: pdm.disponible ? "white" : "rgba(255,255,255,0.35)",
                   margin: 0,
                   lineHeight: 1.3,
                 }}
               >
-                {PRODUCTO_DEL_MES.nombre}
+                {pdm.nombre}
               </p>
 
               {/* Descripción */}
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "rgba(255,255,255,0.5)",
-                  margin: 0,
-                  lineHeight: 1.5,
-                }}
-              >
-                {PRODUCTO_DEL_MES.descripcion}
-              </p>
+              {pdm.descripcion && (
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255,255,255,0.5)",
+                    margin: 0,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {pdm.descripcion}
+                </p>
+              )}
 
               {/* Precio + botón */}
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <span
-                  style={{ fontSize: "20px", color: pdmDisponible ? "#f97316" : "rgba(255,255,255,0.3)", fontWeight: 600 }}
+                  style={{ fontSize: "20px", color: pdm.disponible ? "#f97316" : "rgba(255,255,255,0.3)", fontWeight: 600 }}
                 >
-                  ₡{PRODUCTO_DEL_MES.precio.toLocaleString("es-CR")}
+                  ₡{pdm.precio.toLocaleString("es-CR")}
                 </span>
-                {pdmDisponible ? (
+                {pdm.disponible ? (
                   <button
                     onClick={() =>
                       agregarProducto({
-                        id:     PRODUCTO_DEL_MES.id,
-                        nombre: PRODUCTO_DEL_MES.nombre,
-                        precio: PRODUCTO_DEL_MES.precio,
+                        id:     pdm.id,
+                        nombre: pdm.nombre,
+                        precio: pdm.precio,
                       })
                     }
                     style={{
@@ -400,19 +422,19 @@ export default function Home() {
               }}
             >
               <div style={{ position: "relative", display: "inline-block" }}>
-                {imagenPDM ? (
+                {pdm.imagen ? (
                   <Image
-                    src={imagenPDM}
-                    alt={PRODUCTO_DEL_MES.nombre}
+                    src={pdm.imagen}
+                    alt={pdm.nombre}
                     width={100}
                     height={100}
                     className="object-contain"
-                    style={{ filter: pdmDisponible ? "none" : "grayscale(1)", opacity: pdmDisponible ? 1 : 0.4 }}
+                    style={{ filter: pdm.disponible ? "none" : "grayscale(1)", opacity: pdm.disponible ? 1 : 0.4 }}
                   />
                 ) : (
-                  <span style={{ fontSize: "64px", lineHeight: 1, opacity: pdmDisponible ? 1 : 0.35 }}>🍔</span>
+                  <span style={{ fontSize: "64px", lineHeight: 1, opacity: pdm.disponible ? 1 : 0.35 }}>🍔</span>
                 )}
-                {!pdmDisponible && (
+                {!pdm.disponible && (
                   <span style={{
                     position: "absolute", bottom: 4, left: "50%", transform: "translateX(-50%)",
                     background: "rgba(0,0,0,0.7)", color: "#fff",
@@ -427,6 +449,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── CATEGORÍAS ───────────────────────────────────────────────────── */}
       <section className="py-16 px-4 w-full">

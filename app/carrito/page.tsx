@@ -21,7 +21,8 @@ import {
 import { calcularEstado, type EstadoHorario } from "@/lib/horario";
 
 // ─── Constantes del negocio ───────────────────────────────────────────────────
-const SINPE_NUMBER = "XXXX-XXXX"; // Ej. 8888-8888
+// TEMPORAL: número de prueba — reemplazar antes de producción con el número oficial de Bocado Supremo
+const SINPE_NUMBER = process.env.NEXT_PUBLIC_SINPE_NUMBER ?? "Configurar número de SINPE";
 
 function CarritoContent() {
   const items           = useCartStore((state) => state.items);
