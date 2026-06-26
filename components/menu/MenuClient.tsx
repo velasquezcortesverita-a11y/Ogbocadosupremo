@@ -1,9 +1,9 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Plus, ShoppingBag, Sandwich } from "lucide-react";
+import { Plus, ShoppingBag, Sandwich, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCartStore } from "@/store/carstore";
 import MenuHeroSlideshow from "@/components/menu/MenuHeroSlideshow";
 import RepetirPedido from "@/components/RepetirPedido";
@@ -273,12 +273,37 @@ export default function MenuClient({
   initialCategoria?: string;
 }) {
   const [categoriaActiva, setCategoriaActiva] = useState<string>("todos");
+  const [canScrollLeft,  setCanScrollLeft]  = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const items = useCartStore((s) => s.items);
   const total = useCartStore((s) => s.total);
   const router = useRouter();
 
   const totalItems = items.reduce((acc, item) => acc + item.cantidad, 0);
+
+  const checkScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    const ro = new ResizeObserver(checkScroll);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", checkScroll); ro.disconnect(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categorias]);
+
+  const scrollCats = (dir: number) => {
+    scrollRef.current?.scrollBy({ left: dir * 200, behavior: "smooth" });
+  };
 
   useEffect(() => {
     if (!initialCategoria || categorias.length === 0) return;
@@ -324,31 +349,88 @@ export default function MenuClient({
       {categorias.length > 0 && (
         <div className="sticky top-0 bg-white z-10 border-b border-gray-100">
           <div className="max-w-5xl mx-auto px-4">
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide py-3">
+            <div className="relative flex items-center">
+
+              {/* Flecha izquierda — solo desktop */}
               <button
-                onClick={() => setCategoriaActiva("todos")}
-                className={`shrink-0 px-4 py-1.5 rounded-full text-sm border font-medium whitespace-nowrap transition-all duration-200 ${
-                  categoriaActiva === "todos"
-                    ? "bg-orange-500 text-white border-orange-500"
-                    : "bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700"
-                }`}
+                onClick={() => scrollCats(-1)}
+                aria-label="Categorías anteriores"
+                className="hidden md:flex absolute left-0 z-20 items-center justify-center w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-gray-800 transition-all duration-150"
+                style={{
+                  top: "50%", transform: "translateY(-50%)",
+                  opacity: canScrollLeft ? 1 : 0,
+                  pointerEvents: canScrollLeft ? "auto" : "none",
+                }}
               >
-                Todos
+                <ChevronLeft size={14} />
               </button>
 
-              {categorias.map((cat) => (
+              {/* Fade izquierdo */}
+              <div
+                className="hidden md:block absolute left-0 z-10 w-12 pointer-events-none transition-opacity duration-200"
+                style={{
+                  top: 0, bottom: 0,
+                  background: "linear-gradient(to right, white 30%, transparent)",
+                  opacity: canScrollLeft ? 1 : 0,
+                }}
+              />
+
+              {/* Contenedor con scroll */}
+              <div
+                ref={scrollRef}
+                className="flex gap-2 py-3 w-full scrollbar-hide"
+                style={{ overflowX: "auto", scrollbarWidth: "none" }}
+              >
                 <button
-                  key={cat.id}
-                  onClick={() => setCategoriaActiva(cat.id)}
+                  onClick={() => setCategoriaActiva("todos")}
                   className={`shrink-0 px-4 py-1.5 rounded-full text-sm border font-medium whitespace-nowrap transition-all duration-200 ${
-                    categoriaActiva === cat.id
+                    categoriaActiva === "todos"
                       ? "bg-orange-500 text-white border-orange-500"
                       : "bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700"
                   }`}
                 >
-                  {cat.nombre}
+                  Todos
                 </button>
-              ))}
+
+                {categorias.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setCategoriaActiva(cat.id)}
+                    className={`shrink-0 px-4 py-1.5 rounded-full text-sm border font-medium whitespace-nowrap transition-all duration-200 ${
+                      categoriaActiva === cat.id
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700"
+                    }`}
+                  >
+                    {cat.nombre}
+                  </button>
+                ))}
+              </div>
+
+              {/* Fade derecho */}
+              <div
+                className="hidden md:block absolute right-0 z-10 w-12 pointer-events-none transition-opacity duration-200"
+                style={{
+                  top: 0, bottom: 0,
+                  background: "linear-gradient(to left, white 30%, transparent)",
+                  opacity: canScrollRight ? 1 : 0,
+                }}
+              />
+
+              {/* Flecha derecha — solo desktop */}
+              <button
+                onClick={() => scrollCats(1)}
+                aria-label="Más categorías"
+                className="hidden md:flex absolute right-0 z-20 items-center justify-center w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-gray-800 transition-all duration-150"
+                style={{
+                  top: "50%", transform: "translateY(-50%)",
+                  opacity: canScrollRight ? 1 : 0,
+                  pointerEvents: canScrollRight ? "auto" : "none",
+                }}
+              >
+                <ChevronRight size={14} />
+              </button>
+
             </div>
           </div>
         </div>
