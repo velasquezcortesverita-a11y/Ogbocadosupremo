@@ -306,7 +306,11 @@ export default function HistorialTab() {
     setLoading(false);
   }, [mes]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    cargar();
+    window.addEventListener("dia-cerrado", cargar);
+    return () => window.removeEventListener("dia-cerrado", cargar);
+  }, [cargar]);
 
   // Mapa día → cierre para el mes mostrado
   const cierreByDay: Record<number, CierreHistorial> = {};
