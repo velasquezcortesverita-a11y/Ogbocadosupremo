@@ -289,6 +289,9 @@ function EditModal({
   const [nombre,             setNombre]             = useState(producto?.nombre  ?? "");
   const [precio,             setPrecio]             = useState(producto?.precio?.toString() ?? "");
   const [pdmSelectedId,      setPdmSelectedId]      = useState<string | null>(pdmProductoId);
+  const [pdmNombre,          setPdmNombre]          = useState("");
+  const [pdmDescripcion,     setPdmDescripcion]     = useState("");
+  const [pdmPrecio,          setPdmPrecio]          = useState("");
   const [preview,            setPreview]            = useState<string | null>(null);
   const [imgFile,            setImgFile]            = useState<File | null>(null);
   const [imgQuitada,         setImgQuitada]         = useState(false);
@@ -313,6 +316,29 @@ function EditModal({
   useEffect(() => {
     return () => { if (preview) URL.revokeObjectURL(preview); };
   }, [preview]);
+
+  useEffect(() => {
+    if (!isPdm) return;
+    (async () => {
+      const [{ data: nCfg }, { data: dCfg }, { data: pCfg }] = await Promise.all([
+        supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_nombre").maybeSingle(),
+        supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_descripcion").maybeSingle(),
+        supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_precio").maybeSingle(),
+      ]);
+      if (nCfg?.valor || dCfg?.valor || pCfg?.valor) {
+        setPdmNombre((nCfg?.valor as string | null) ?? "");
+        setPdmDescripcion((dCfg?.valor as string | null) ?? "");
+        setPdmPrecio((pCfg?.valor as string | null) ?? "");
+      } else if (pdmProductoId) {
+        const { data: prod } = await supabase.from("productos").select("nombre, precio, descripcion").eq("id", pdmProductoId).maybeSingle();
+        if (prod) {
+          setPdmNombre((prod.nombre as string | null) ?? "");
+          setPdmDescripcion((prod.descripcion as string | null) ?? "");
+          setPdmPrecio(prod.precio != null ? String(prod.precio) : "");
+        }
+      }
+    })();
+  }, [isPdm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isPdm) return;
@@ -382,6 +408,15 @@ function EditModal({
         if (pdmSelectedId) {
           const { error: dbErr } = await supabase.from("configuracion").upsert({ clave: "producto_del_mes", valor: pdmSelectedId }, { onConflict: "clave" });
           if (dbErr) throw new Error(dbErr.message);
+        }
+        // Guardar campos de display del banner
+        if (pdmNombre.trim()) {
+          await supabase.from("configuracion").upsert({ clave: "producto_del_mes_nombre", valor: pdmNombre.trim() }, { onConflict: "clave" });
+        }
+        await supabase.from("configuracion").upsert({ clave: "producto_del_mes_descripcion", valor: pdmDescripcion.trim() }, { onConflict: "clave" });
+        const precioNum = Number(pdmPrecio);
+        if (precioNum > 0) {
+          await supabase.from("configuracion").upsert({ clave: "producto_del_mes_precio", valor: String(precioNum) }, { onConflict: "clave" });
         }
         // Guardar imagen personalizada del banner
         if (newImgUrl) {
@@ -489,6 +524,41 @@ function EditModal({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+          {isPdm && (
+            <div>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Nombre del banner</label>
+              <input
+                value={pdmNombre}
+                onChange={(e) => setPdmNombre(e.target.value)}
+                placeholder="Ej. Hamburguesa del mes"
+                style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 10px", color: "rgba(255,255,255,0.85)", fontSize: 13, outline: "none" }}
+              />
+            </div>
+          )}
+          {isPdm && (
+            <div>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Descripción</label>
+              <input
+                value={pdmDescripcion}
+                onChange={(e) => setPdmDescripcion(e.target.value)}
+                placeholder="Descripción corta (opcional)"
+                style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 10px", color: "rgba(255,255,255,0.85)", fontSize: 13, outline: "none" }}
+              />
+            </div>
+          )}
+          {isPdm && (
+            <div>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" }}>Precio (₡)</label>
+              <input
+                type="number"
+                min="1"
+                value={pdmPrecio}
+                onChange={(e) => setPdmPrecio(e.target.value)}
+                placeholder="0"
+                style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 10px", color: "#f97316", fontSize: 15, fontWeight: 600, outline: "none" }}
+              />
             </div>
           )}
 
@@ -731,8 +801,13 @@ function DeleteModal({
       const { error: dbErr } = await supabase.from("productos").delete().eq("id", producto.id);
       if (dbErr) throw new Error(dbErr.message);
       if (eraPdm) {
-        await supabase.from("configuracion").delete().eq("clave", "producto_del_mes_imagen");
-        await supabase.from("configuracion").delete().eq("clave", "producto_del_mes");
+        await Promise.all([
+          supabase.from("configuracion").delete().eq("clave", "producto_del_mes"),
+          supabase.from("configuracion").delete().eq("clave", "producto_del_mes_imagen"),
+          supabase.from("configuracion").delete().eq("clave", "producto_del_mes_nombre"),
+          supabase.from("configuracion").delete().eq("clave", "producto_del_mes_descripcion"),
+          supabase.from("configuracion").delete().eq("clave", "producto_del_mes_precio"),
+        ]);
       }
       onDeleted(producto.id, eraPdm);
     } catch (err) {

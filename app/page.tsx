@@ -111,27 +111,26 @@ export default function Home() {
 
       const productId = configPdm.valor as string;
 
-      // 2. Obtener datos del producto e imagen personalizada en paralelo
-      const [{ data: prod }, { data: imgConfig }] = await Promise.all([
+      // 2. Obtener datos del producto y campos configurables del banner en paralelo
+      const [{ data: prod }, { data: imgConfig }, { data: nCfg }, { data: dCfg }, { data: pCfg }] = await Promise.all([
         supabase
           .from("productos")
           .select("id, nombre, precio, descripcion, imagen_url, disponible")
           .eq("id", productId)
           .maybeSingle(),
-        supabase
-          .from("configuracion")
-          .select("valor")
-          .eq("clave", "producto_del_mes_imagen")
-          .maybeSingle(),
+        supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_imagen").maybeSingle(),
+        supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_nombre").maybeSingle(),
+        supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_descripcion").maybeSingle(),
+        supabase.from("configuracion").select("valor").eq("clave", "producto_del_mes_precio").maybeSingle(),
       ]);
 
       if (!prod) return; // Producto no encontrado en la tabla productos
 
       setPdm({
-        id:          prod.id          as string,
-        nombre:      prod.nombre      as string,
-        precio:      prod.precio      as number,
-        descripcion: (prod.descripcion as string | null) ?? "",
+        id:          prod.id as string,
+        nombre:      (nCfg?.valor as string | null) ?? (prod.nombre as string),
+        precio:      pCfg?.valor ? Number(pCfg.valor) : (prod.precio as number),
+        descripcion: (dCfg?.valor as string | null) ?? ((prod.descripcion as string | null) ?? ""),
         imagen:      (imgConfig?.valor as string | null) ?? (prod.imagen_url as string | null) ?? "",
         disponible:  (prod.disponible  as boolean | null) ?? true,
       });
