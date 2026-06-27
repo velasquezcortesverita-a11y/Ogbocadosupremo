@@ -134,6 +134,25 @@ function ReporteModal({
   );
 }
 
+// ─── Helpers de datos ─────────────────────────────────────────────────────────
+
+function calcularProductoMasVendido(
+  pedidos: PedidoReporte[]
+): { nombre: string; cantidad: number } | null {
+  const mapa = new Map<string, number>();
+  for (const p of pedidos) {
+    for (const item of p.pedido_items) {
+      mapa.set(item.nombre_producto, (mapa.get(item.nombre_producto) ?? 0) + item.cantidad);
+    }
+  }
+  if (mapa.size === 0) return null;
+  let nombre = "", cantidad = 0;
+  for (const [n, c] of mapa.entries()) {
+    if (c > cantidad) { nombre = n; cantidad = c; }
+  }
+  return { nombre, cantidad };
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function ResumenVentas() {
@@ -238,6 +257,24 @@ export default function ResumenVentas() {
       setReporteData({ resumen, horaInicio: diaInicio, horaCierre, pedidos: lista });
       setShowReporte(true);
       setShowModal(false);
+
+      // Enviar correo en segundo plano — no bloquea ni muestra error al cocinero
+      const productoMasVendido = calcularProductoMasVendido(lista);
+      fetch("/api/enviar-reporte-cierre", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sinpeTotal:       resumen.sinpe.total,
+          sinpeCantidad:    resumen.sinpe.cantidad,
+          efectivoTotal:    resumen.efectivo.total,
+          efectivoCantidad: resumen.efectivo.cantidad,
+          generalTotal:     resumen.general.total,
+          generalCantidad:  resumen.general.cantidad,
+          horaInicio:       diaInicio,
+          horaCierre,
+          productoMasVendido,
+        }),
+      }).catch((err) => console.error("[cierre-dia] Error enviando correo:", err));
 
       setDiaInicio(horaCierre);
       setResumen({ sinpe: { total: 0, cantidad: 0 }, efectivo: { total: 0, cantidad: 0 }, general: { total: 0, cantidad: 0 } });
