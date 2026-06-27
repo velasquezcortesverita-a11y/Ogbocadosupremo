@@ -238,7 +238,10 @@ export default function ResumenVentas() {
 
       const lista = (pedidosDelDia ?? []) as PedidoReporte[];
 
-      const { error: cierreErr } = await supabase.from("cierres_dia").insert({
+      // upsert en vez de insert: la columna fecha tiene UNIQUE constraint,
+      // así que si ya existe un cierre para hoy (ej. segunda vez en el mismo día),
+      // se actualiza el registro existente en lugar de fallar con 409.
+      const { error: cierreErr } = await supabase.from("cierres_dia").upsert({
         fecha:            horaCierre,
         hora_inicio:      diaInicio,
         hora_cierre:      horaCierre,
@@ -248,7 +251,7 @@ export default function ResumenVentas() {
         total_general:    resumen.general.total,
         cantidad_pedidos: resumen.general.cantidad,
         pedidos_ids:      lista.map((p) => p.id),
-      });
+      }, { onConflict: "fecha" });
       if (cierreErr) throw new Error(cierreErr.message);
 
       await supabase.from("configuracion")
