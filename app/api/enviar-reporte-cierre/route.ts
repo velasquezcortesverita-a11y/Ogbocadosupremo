@@ -4,8 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 // TODO: cambiar el remitente a algo@bocadosupremo.com una vez que el dominio
 // bocadosupremo.com esté verificado en Resend.
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 type Payload = {
   sinpeTotal:     number;
   sinpeCantidad:  number;
@@ -194,6 +192,9 @@ function buildHtml(p: Payload): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Instanciar dentro del handler para que process.env esté disponible en runtime
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
   try {
     const payload = (await req.json()) as Payload;
 
