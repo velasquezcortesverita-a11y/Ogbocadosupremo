@@ -1,8 +1,8 @@
 import { Resend } from "resend";
 import { NextRequest, NextResponse } from "next/server";
 
-// TODO: cambiar el remitente a algo@bocadosupremo.com una vez que el dominio
-// bocadosupremo.com esté verificado en Resend.
+// TODO: cambiar el remitente a algo@bocadosupremo.com
+// una vez que bocadosupremo.com esté verificado en Resend.
 
 type Payload = {
   sinpeTotal:     number;
