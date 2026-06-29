@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import ProductosTab  from "@/components/cocina/ProductosTab";
-import SinpesTab     from "@/components/cocina/SinpesTab";
-import HistorialTab  from "@/components/cocina/HistorialTab";
+import ProductosTab   from "@/components/cocina/ProductosTab";
+import SinpesTab      from "@/components/cocina/SinpesTab";
+import HistorialTab   from "@/components/cocina/HistorialTab";
+import MostradorTab   from "@/components/cocina/MostradorTab";
 
-type Tab = "pedidos" | "sinpes" | "historial" | "productos";
+type Tab = "pedidos" | "sinpes" | "historial" | "productos" | "mostrador";
 
 export default function CocinaTabsWrapper({ children }: { children: React.ReactNode }) {
   const [tab, setTab] = useState<Tab>("pedidos");
@@ -33,17 +34,20 @@ export default function CocinaTabsWrapper({ children }: { children: React.ReactN
   return (
     <>
       {/* Tab pills */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-        <button type="button" className={btnBase} style={pill(tab === "pedidos")}   onClick={() => setTab("pedidos")}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+        <button type="button" className={btnBase} style={pill(tab === "pedidos")}    onClick={() => setTab("pedidos")}>
           Pedidos
         </button>
-        <button type="button" className={btnBase} style={pill(tab === "sinpes")}    onClick={() => setTab("sinpes")}>
+        <button type="button" className={btnBase} style={pill(tab === "mostrador")}  onClick={() => setTab("mostrador")}>
+          🏪 Mostrador
+        </button>
+        <button type="button" className={btnBase} style={pill(tab === "sinpes")}     onClick={() => setTab("sinpes")}>
           Sinpes
         </button>
-        <button type="button" className={btnBase} style={pill(tab === "historial")} onClick={() => setTab("historial")}>
+        <button type="button" className={btnBase} style={pill(tab === "historial")}  onClick={() => setTab("historial")}>
           Historial de ventas
         </button>
-        <button type="button" className={btnBase} style={pill(tab === "productos")} onClick={() => setTab("productos")}>
+        <button type="button" className={btnBase} style={pill(tab === "productos")}  onClick={() => setTab("productos")}>
           Productos
         </button>
       </div>
@@ -52,10 +56,11 @@ export default function CocinaTabsWrapper({ children }: { children: React.ReactN
         Todas las pestañas permanecen montadas (display none/block)
         para mantener vivas las suscripciones Realtime.
       */}
-      <div style={{ display: tab === "pedidos"   ? "block" : "none" }}>{children}</div>
-      <div style={{ display: tab === "sinpes"    ? "block" : "none" }}><SinpesTab /></div>
-      <div style={{ display: tab === "historial" ? "block" : "none" }}><HistorialTab /></div>
-      <div style={{ display: tab === "productos" ? "block" : "none" }}><ProductosTab /></div>
+      <div style={{ display: tab === "pedidos"    ? "block" : "none" }}>{children}</div>
+      <div style={{ display: tab === "mostrador"  ? "block" : "none" }}><MostradorTab /></div>
+      <div style={{ display: tab === "sinpes"     ? "block" : "none" }}><SinpesTab /></div>
+      <div style={{ display: tab === "historial"  ? "block" : "none" }}><HistorialTab /></div>
+      <div style={{ display: tab === "productos"  ? "block" : "none" }}><ProductosTab /></div>
     </>
   );
 }

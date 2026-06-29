@@ -413,25 +413,30 @@ export default function PedidoCard({
           position: "relative",
         }}
       >
-        {/* Badge NUEVO */}
-        {isNuevo && (
-          <div style={{ position: "absolute", top: 10, left: 10, zIndex: 10 }}>
+        {/* Badges: NUEVO + MOSTRADOR */}
+        <div style={{ position: "absolute", top: 10, left: 10, zIndex: 10, display: "flex", gap: 4 }}>
+          {isNuevo && (
             <span style={{
-              background: "#22c55e",
-              color: "#fff",
-              borderRadius: 10,
-              fontSize: 9,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              padding: "2px 7px",
+              background: "#22c55e", color: "#fff",
+              borderRadius: 10, fontSize: 9, fontWeight: 700,
+              letterSpacing: "0.06em", padding: "2px 7px",
             }}>
               NUEVO
             </span>
-          </div>
-        )}
+          )}
+          {pedido.origen === "mostrador" && (
+            <span style={{
+              background: "rgba(107,114,128,0.12)", color: "#6b7280",
+              borderRadius: 10, fontSize: 9, fontWeight: 600,
+              padding: "2px 7px",
+            }}>
+              🏪 Mostrador
+            </span>
+          )}
+        </div>
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-3" style={isNuevo ? { paddingTop: 14 } : {}}>
+        <div className="flex items-start justify-between gap-3" style={isNuevo || pedido.origen === "mostrador" ? { paddingTop: 14 } : {}}>
           {esPreparando ? (
             <div>
               <div className="flex items-center gap-1.5 mb-1">

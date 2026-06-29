@@ -31,5 +31,6 @@ export type Pedido = {
   delivery_address: string | null;
   comprobante_url?: string | null;
   comprobante_revisado?: boolean | null;
+  origen?: string | null;
   pedido_items?: PedidoItem[];
 };
